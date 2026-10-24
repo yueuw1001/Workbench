@@ -1,6 +1,6 @@
 # 工作台 (dsh-workbench)
 
-DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集中展示会话概览、网页搜索与书签、待办、可自定义分类并拖动整理的应用与会话，以及按类型自动归类、自动收纳的常用工具。
+DeepSeek Harness Web 插件：以左侧边栏的「工作台」为主入口，集中展示账户用量、网页搜索与最近书签、待办、可自定义分类并拖动整理的应用与会话。侧边栏里已有的「热点信息」（`dsh-hotspot`）与「便签」（`dsh-scratchpad`）保持独立面板，不再被工作台收纳。
 
 ## 功能
 
@@ -20,7 +20,7 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 
 ### 待办
 
-- 长方形卡片展示；标题栏输入名称即可添加。
+- 长方形卡片展示；标题栏输入内容即可添加。
 - 点击待办自动标记为「已完成」（再点一次撤销），右上角 × 删除；键盘 Enter/空格同样可切换。
 - 标题栏显示“已完成/总数”；数据保存在 `localStorage`（`dsh.workbench.todos.v1`，会自动迁移旧的 `dsh.workbench.modules.v1`）。
 
@@ -36,14 +36,11 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 - 自定义分类与应用归属保存在 `localStorage`（`dsh.workbench.appCats.v1` / `dsh.workbench.appAssign.v1`）。
 - 点击「我的应用」标题行可展开/收起整个应用网格。
 
-当前会出现的应用：
+工作台里当前会出现这些应用（个股分析、美国收盘报、资金雷达、任务监控已移回侧边栏，不再收纳）：
 
 | 分类 | 应用 | 来源 |
 | --- | --- | --- |
-| 行情分析 | 个股分析、美国收盘报 | 显式注册到 `workbench.apps` |
-| 资金流向 | 资金雷达 | 显式注册到 `workbench.apps` |
 | 费用与预算 | 费用统计（`dsh-bill`） | 从侧边栏自动收纳 |
-| 自动化 | 任务监控 | 显式注册到 `workbench.apps` |
 | 自动化 | 定时任务 | 从侧边栏自动收纳 |
 | 系统 | 插件 | 从侧边栏自动收纳 |
 
@@ -92,24 +89,28 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 
 ## 侧边栏入口
 
-- 侧边栏只保留「工作台」一个面板入口（以及新会话/会话列表等 shell 控件）。
+- 侧边栏保留「工作台」入口，外加「热点信息」（`dsh-hotspot`）、「便签」（`dsh-scratchpad`），以及下面四个本地插件面板图标（还有新会话/会话列表等 shell 控件）。
+- 「热点信息」「便签」的 id（`hotspot` / `scratchpad`）写在 `SIDEBAR_KEEP_IDS` 里：工作台既不把它们收进「我的应用」，也不会隐藏它们的侧边栏图标。
 - 被收纳面板的侧边栏行由工作台图标内联的一条窄作用域规则隐藏：
   `nav[aria-label="全局面板"] button[aria-label="<面板标题>"]`（英文对应 `Global panels`）→ `display:none`。
 - 语言不在中/英范围、或宿主改了导航按钮的无障碍标签时，那些图标会重新显示；功能不受影响。
 - 工作台被停用时，内联规则随图标一起消失，所有面板恢复原来的侧边栏图标，不会锁死。
 
-## 移到工作台的插件
+## 留在侧边栏的插件
 
-下列本地插件把注册从 `sidebar.panellist` 改为 `workbench.apps`（`main` 面板注册不变）：
+这些面板注册在 `sidebar.panellist`（`main` 面板注册不变），id 同时写进工作台的
+`SIDEBAR_KEEP_IDS` 不接管名单——工作台既不把它们收进「我的应用」，也不会隐藏它们的侧边栏图标：
 
-| 插件 | 修改文件 |
-| --- | --- |
-| 个股分析 `dsh-stock-analyzer` | `stock-analyzer/client.js` |
-| 美国收盘报 `dsh-us-close-report` | `us-close-report/client.js` |
-| 资金雷达 `dsh-market-radar` | `market-radar/client.js` |
-| 任务监控 `@local/task-monitor` | `task-monitor/client.js` |
+| 插件 | id | 修改文件 |
+| --- | --- | --- |
+| 个股智能分析 `dsh-stock-analyzer` | `stock-analyzer` | `stock-analyzer/client.js` |
+| 美国收盘报 `dsh-us-close-report` | `us-close-report` | `us-close-report/client.js` |
+| 市场资金雷达 `dsh-market-radar` | `market-radar` | `market-radar/client.js` |
+| 任务监控 `@local/task-monitor` | `task-monitor` | `task-monitor/client.js` |
+| 热点信息 `dsh-hotspot` | `hotspot` | 无（加入工作台 `SIDEBAR_KEEP_IDS`） |
+| 便签 `dsh-scratchpad` | `scratchpad` | 无（加入工作台 `SIDEBAR_KEEP_IDS`） |
 
-`dsh-bill`（费用统计）、内置「插件」与「定时任务」没有改动源码，走上面的「零改动收纳」。
+`dsh-bill`（费用统计）、内置「插件」与「定时任务」没有改动源码，仍走上面的「零改动收纳」。
 
 ## 实现
 
@@ -118,7 +119,7 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 | 侧边栏入口 | `sidebar.panellist`，`id = workbench`，`order = 5` |
 | 中央面板 | `main`，`key = workbench` |
 | 应用插槽 | `workbench.apps`（`main` 入口声明的 `list` 子插槽，scope `root`） |
-| 自动收纳来源 | `sidebar.panellist`（除 `workbench` 外的全部条目） |
+| 自动收纳来源 | `sidebar.panellist`（除 `workbench` 及 `SIDEBAR_KEEP_IDS` 内的独立面板） |
 | 网页搜索 | `globalThis.__dshBuiltinBrowser.openPanel(sessionId, url)`，回退 `window.open` |
 | 包名 / 客户端模块 id | `dsh-workbench` |
 | 语言命名空间 | `workbench` |
@@ -138,7 +139,7 @@ plugin_manager  install_bundle  target: <本目录绝对路径>\workbench
 ```powershell
 node --check workbench\client.js
 node --check workbench\index.js
-node workbench\test\smoke.mjs   # 加载模块、执行 apply，并用 stub React 执行页面组件（含种子化的分类/书签/待办）
+node workbench\test\smoke.mjs   # 加载模块、执行 apply，并用 stub React 执行工作台页面组件
 ```
 
 ## 已知限制
@@ -148,6 +149,7 @@ node workbench\test\smoke.mjs   # 加载模块、执行 apply，并用 stub Reac
 - 自定义分类、书签、待办与背景都保存在当前浏览器的 `localStorage`；换浏览器、无痕模式或清缓存后会丢失。
 - 背景图片建议小于 2MB；超出会提示。`localStorage` 配额不足时图片当次仍生效，但可能无法持久保存。
 - 「最近会话」不显示相对时间：会话摘要未提供稳定的更新时间字段，按会话列表既有顺序展示。
-- 从应用面板返回工作台请点侧边栏「工作台」图标。
+- 热点信息（`dsh-hotspot`）、便签（`dsh-scratchpad`）是独立侧边栏插件，不参与工作台的自动收纳，也不会被工作台隐藏。
+- 从热点信息/便签/应用面板返回工作台请点侧边栏「工作台」图标。
 - 显式注册方式依赖对四个本地插件 `client.js` 的注册改动；插件升级会覆盖，需要重新改回 `workbench.apps`。零改动收纳方式不受插件升级影响。
 - 视觉验证依赖已连接的 Harness 页面；本机浏览器控制不可用时只能验证 JS 语法、清单、资源与线上插槽注册。

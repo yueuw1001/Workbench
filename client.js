@@ -33,6 +33,16 @@ window.__ModuleLoader__.load({
     const NS = 'workbench'
     const PANEL_ID = 'workbench'
     const RECENT_LIMIT = 8
+    // 这些面板留在侧边栏当独立图标：工作台既不把它们收进「我的应用」，
+    // 也不会隐藏它们在侧边栏的行（见 useSidebarPanels / WorkbenchIcon）。
+    const SIDEBAR_KEEP_IDS = {
+      'us-close-report': true,
+      'market-radar': true,
+      'stock-analyzer': true,
+      'task-monitor': true,
+      'hotspot': true,
+      'scratchpad': true,
+    }
 
     const zh = {
       panel: '工作台',
@@ -121,7 +131,7 @@ window.__ModuleLoader__.load({
       appBillDesc: '每轮/每会话花费、预算与全账户费用报告',
       appPluginsDesc: '安装、启用与配置插件',
       appSchedulesDesc: '查看与管理定时提醒',
-      footNote: '应用按类型自动归类，新插件的侧边栏面板会自动收进工作台；会话列表实时更新。',
+      footNote: '热点信息与便签已独立到侧边栏；应用按类型自动归类，新插件的侧边栏面板会自动收进工作台；会话列表实时更新。',
       noticePanelMissing: '该面板未安装或已停用。',
       noticeActionUnavailable: '操作暂不可用，请稍后重试。',
       noticeBgType: '请选择图片文件。',
@@ -216,7 +226,7 @@ window.__ModuleLoader__.load({
       appBillDesc: 'Per-turn and per-session spend, budget, and account-wide reports',
       appPluginsDesc: 'Install, enable, and configure plugins',
       appSchedulesDesc: 'Review and manage scheduled reminders',
-      footNote: 'Apps are grouped automatically; a new plugin panel is adopted into the workbench; session data stays live.',
+      footNote: 'Hot info and Notes now live in their own sidebar panels; apps are grouped automatically and new plugin panels are adopted into the workbench; session data stays live.',
       noticePanelMissing: 'That panel is not installed or is disabled.',
       noticeActionUnavailable: 'That action is unavailable right now.',
       noticeBgType: 'Please choose an image file.',
@@ -712,7 +722,7 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** Category order and presentation for the auto-classified app grid. */
+/** Category order and presentation for the auto-classified app grid. */
     const CATEGORY_DEFS = [
       { id: 'market', titleKey: 'catMarket', descKey: 'catMarketDesc', icon: IconChart },
       { id: 'funds', titleKey: 'catFunds', descKey: 'catFundsDesc', icon: IconWaves },
@@ -798,6 +808,7 @@ window.__ModuleLoader__.load({
         for (let index = 0; index < entries.length; index += 1) {
           const options = entries[index] && entries[index].options ? entries[index].options : {}
           if (typeof options.id !== 'string' || options.id === '' || options.id === PANEL_ID) continue
+          if (SIDEBAR_KEEP_IDS[options.id]) continue
           let label = options.label
           if (typeof label === 'function') {
             try { label = label() } catch (error) { label = undefined }
@@ -1638,18 +1649,18 @@ window.__ModuleLoader__.load({
             h('span', { key: 'boxLabel', className: 'dswb-engineBoxLabel' }, t('engineBoxLabel')),
             h('div', { key: 'engines', className: 'dswb-engines', role: 'group', 'aria-label': t('webSearchEngine') },
               SEARCH_ENGINES.map(function (engine) {
-                const active = searchEngine === engine.id
+                const selected = searchEngine === engine.id
                 return h('button', {
                   key: engine.id,
                   type: 'button',
-                  className: active ? 'dswb-engine is-active' : 'dswb-engine',
-                  'aria-pressed': active,
+                  className: selected ? 'dswb-engine is-active' : 'dswb-engine',
+                  'aria-pressed': selected,
                   title: t(engine.labelKey),
                   'aria-label': t(engine.labelKey),
                   onClick: function () { setSearchEngine(engine.id) },
                 },
                   h('span', { key: 'text' }, t(engine.labelKey)),
-                  active
+                  selected
                     ? h('span', { key: 'check', className: 'dswb-engineCheck', 'aria-hidden': true },
                         h(IconCheck, { size: 9 }))
                     : null

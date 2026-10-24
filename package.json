@@ -1,9 +1,9 @@
 {
   "name": "dsh-workbench",
-  "version": "1.6.5",
+  "version": "1.7.1",
   "private": true,
   "type": "module",
-  "description": "DeepSeek Harness 侧边栏工作台：问候、网页搜索与最近书签、待办、可自定义分类并拖动整理的应用与会话、自定义背景",
+  "description": "DeepSeek Harness 侧边栏工作台：问候、账户用量、网页搜索与书签、待办、可自定义分类并拖动整理的应用与会话、自定义背景；侧边栏的热点信息与便签插件保持独立",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
