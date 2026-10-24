@@ -778,8 +778,8 @@ window.__ModuleLoader__.load({
 
     /**
      * Read every global panel the sidebar currently offers, including shipped
-     * and third-party panels. The workbench adopts them: each becomes an app
-     * card and its sidebar row is hidden by the workbench icon's style rule.
+     * and third-party panels. The workbench uses the list as drag sources; only
+     * a panel the user drops into the workbench is pinned and hidden.
      * @returns ordered `{ id, label }` descriptors.
      */
     function useSidebarPanels() {
