@@ -1,0 +1,4 @@
+# 工作台：侧边栏入口 + 中央面板（问候、会话概览、最近会话、快速入口）。
+- insert:
+    - id: workbench
+      name: dsh-workbench
