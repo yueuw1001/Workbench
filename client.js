@@ -51,6 +51,14 @@ window.__ModuleLoader__.load({
       emptyTitle: '还没有会话',
       emptyHint: '新建一个会话，开始你的第一次对话。',
       noMatch: '没有找到匹配的会话。',
+      metrics: '账户与用量',
+      metricBalance: '剩余余额',
+      metricTokens: '今日使用 Token',
+      metricAmount: '今日使用金额',
+      metricHintBalance: 'DeepSeek 账户',
+      metricHintTokens: '全部会话',
+      metricHintSpend: '按模型价格估算',
+      metricNoData: '暂无数据',
       webSearch: '网页搜索',
       webSearchHint: '用内置浏览器打开',
       webSearchPlaceholder: '搜索网页或输入网址…',
@@ -138,6 +146,14 @@ window.__ModuleLoader__.load({
       emptyTitle: 'No sessions yet',
       emptyHint: 'Start a session to begin your first conversation.',
       noMatch: 'No sessions match your search.',
+      metrics: 'Account & usage',
+      metricBalance: 'Balance',
+      metricTokens: "Today's tokens",
+      metricAmount: "Today's spend",
+      metricHintBalance: 'DeepSeek account',
+      metricHintTokens: 'All sessions',
+      metricHintSpend: 'Estimated from model prices',
+      metricNoData: 'No data',
       webSearch: 'Web search',
       webSearchHint: 'Opens in the built-in browser',
       webSearchPlaceholder: 'Search the web or enter a URL…',
@@ -348,6 +364,157 @@ window.__ModuleLoader__.load({
       if (hour < 13) return 'greetNoon'
       if (hour < 18) return 'greetAfternoon'
       return 'greetEvening'
+    }
+
+    // ------------------------------------------------------------------
+    // Account metrics: balance, today's tokens, today's estimated spend
+    // ------------------------------------------------------------------
+    //
+    // The balance route and the `queryBalanceCost` session projection are
+    // provided by the `dsh-api-dashboard` plugin; the core account remote is
+    // the fallback wallet source. Without either, the cards show "—".
+
+    function formatMoney(amount, currency) {
+      const symbol = String(currency || 'CNY').toUpperCase() === 'USD' ? '$' : '¥'
+      if (!Number.isFinite(amount)) return symbol + '—'
+      try {
+        return symbol + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      } catch (error) {
+        return symbol + amount.toFixed(2)
+      }
+    }
+
+    function formatTodayMoney(byCurrency) {
+      const map = byCurrency !== null && byCurrency !== undefined ? byCurrency : {}
+      const keys = Object.keys(map).filter(function (key) { return Number.isFinite(map[key]) })
+      if (keys.length === 0) return '—'
+      keys.sort(function (left, right) {
+        if (left === 'CNY') return -1
+        if (right === 'CNY') return 1
+        return left < right ? -1 : left > right ? 1 : 0
+      })
+      return keys.map(function (key) { return formatMoney(map[key], key) }).join(' + ')
+    }
+
+    function formatTokens(total, active) {
+      const count = Number(total)
+      if (!Number.isFinite(count)) return '—'
+      try {
+        if (count < 10000) return new Intl.NumberFormat(localeTag(active)).format(count)
+        return new Intl.NumberFormat(localeTag(active), {
+          notation: 'compact', maximumFractionDigits: 1,
+        }).format(count)
+      } catch (error) {
+        return String(count)
+      }
+    }
+
+    /**
+     * Find the shared `queryBalanceCost` projection among the session list
+     * projections. Every session carries the same account-wide value, so the
+     * first populated entry is enough.
+     * @returns `{ tokens, byCurrency, day }` or null.
+     */
+    function todayStatsOf(state) {
+      if (state === null || state === undefined) return null
+      const projections = state.projectionsBySession
+      if (projections === null || typeof projections !== 'object') return null
+      const ids = Object.keys(projections)
+      for (let index = 0; index < ids.length; index += 1) {
+        const values = projections[ids[index]] && projections[ids[index]].values
+        const view = values ? values.queryBalanceCost : undefined
+        if (!view || !view.todayTokens) continue
+        const tokens = view.todayTokens
+        const total = (Number(tokens.uncachedInput) || 0)
+          + (Number(tokens.cacheRead) || 0)
+          + (Number(tokens.cacheWrite) || 0)
+          + (Number(tokens.output) || 0)
+        return {
+          tokens: total,
+          byCurrency: view.todayByCurrency !== null && typeof view.todayByCurrency === 'object' ? view.todayByCurrency : {},
+          day: typeof view.todayDay === 'string' ? view.todayDay : '',
+        }
+      }
+      return null
+    }
+
+    async function fetchDashboardBalance() {
+      try {
+        if (typeof fetch !== 'function') return null
+        const response = await fetch('/api-dashboard/balances?stale=1', { credentials: 'same-origin' })
+        if (response === null || response === undefined || response.ok !== true) return null
+        const data = await response.json()
+        const list = data !== null && data !== undefined && Array.isArray(data.balances) ? data.balances : []
+        let item
+        for (let index = 0; index < list.length; index += 1) {
+          const row = list[index]
+          if (row && row.platform === 'deepseek') { item = row; break }
+        }
+        if (!item || item.status !== 'ok') return null
+        const amount = Number(item.total)
+        if (!Number.isFinite(amount)) return null
+        return { amount: amount, currency: String(item.currency || 'CNY'), source: 'dashboard' }
+      } catch (error) {
+        return null
+      }
+    }
+
+    async function fetchAccountBalance(localeId) {
+      try {
+        if (!moduleCtx || typeof moduleCtx.get !== 'function') return null
+        const remote = moduleCtx.get('remote')
+        const account = remote ? remote.account : undefined
+        if (!account || typeof account.getBalance !== 'function') return null
+        const version = typeof window !== 'undefined' && window.__DSH_BOOT__ && typeof window.__DSH_BOOT__.version === 'string'
+          ? window.__DSH_BOOT__.version
+          : '0.0.0'
+        const result = await account.getBalance({
+          version: version,
+          locale: localeId || activeLocaleOf(moduleLocale),
+          timezoneOffsetSeconds: -new Date().getTimezoneOffset() * 60,
+        })
+        if (result === null || result === undefined || result.ok !== true) return null
+        const details = result.value
+        if (!details || details.status !== 'ready') return null
+        const wallets = []
+        if (Array.isArray(details.value)) wallets.push.apply(wallets, details.value)
+        if (Array.isArray(details.bonusWallets)) wallets.push.apply(wallets, details.bonusWallets)
+        if (wallets.length === 0) return null
+        let wallet
+        for (let index = 0; index < wallets.length; index += 1) {
+          const row = wallets[index]
+          if (row && row.currency === 'CNY' && Number.isFinite(Number(row.balance))) { wallet = row; break }
+        }
+        if (!wallet) {
+          for (let index = 0; index < wallets.length; index += 1) {
+            const row = wallets[index]
+            if (row && Number.isFinite(Number(row.balance))) { wallet = row; break }
+          }
+        }
+        if (!wallet) return null
+        return { amount: Number(wallet.balance), currency: String(wallet.currency || 'CNY'), source: 'account' }
+      } catch (error) {
+        return null
+      }
+    }
+
+    async function loadBalance(localeId) {
+      const dashboard = await fetchDashboardBalance()
+      if (dashboard !== null) return dashboard
+      return fetchAccountBalance(localeId)
+    }
+
+    /** Read the account balance when the workbench opens (and on locale change). */
+    function useBalance(localeId) {
+      const [balance, setBalance] = useState(null)
+      useEffect(function () {
+        let alive = true
+        loadBalance(localeId).then(function (next) {
+          if (alive) setBalance(next)
+        })
+        return function () { alive = false }
+      }, [localeId])
+      return balance
     }
 
     // ------------------------------------------------------------------
@@ -892,6 +1059,8 @@ window.__ModuleLoader__.load({
       const statuses = typeof props.useSessionStatus === 'function'
         ? props.useSessionStatus(function (state) { return state })
         : undefined
+      const balance = useBalance(active)
+      const today = useMemo(function () { return todayStatsOf(sessions) }, [sessions])
       const [appsOpen, setAppsOpen] = useState(true)
       const [recentOpen, setRecentOpen] = useState(true)
       const [todos, setTodos] = useState(loadTodos)
@@ -1423,6 +1592,32 @@ window.__ModuleLoader__.load({
           : null
       )
 
+      function metricCard(id, label, value, hint) {
+        return h('div', { key: id, className: 'dswb-metric' },
+          h('span', { key: 'label', className: 'dswb-metricLabel' }, label),
+          h('span', { key: 'value', className: 'dswb-metricValue' }, value),
+          h('span', { key: 'hint', className: 'dswb-metricHint' }, hint)
+        )
+      }
+
+      const metricsNode = h('section', { key: 'metrics', className: 'dswb-metricsSection', 'aria-label': t('metrics') },
+        h('div', { key: 'head', className: 'dswb-sectionHead' },
+          h('h2', { key: 'title', className: 'dswb-sectionTitle' }, t('metrics')),
+          today && today.day ? h('span', { key: 'day', className: 'dswb-sectionHint' }, today.day) : null
+        ),
+        h('div', { key: 'grid', className: 'dswb-metrics' },
+          metricCard('balance', t('metricBalance'),
+            balance ? formatMoney(balance.amount, balance.currency) : '—',
+            balance ? t('metricHintBalance') : t('metricNoData')),
+          metricCard('tokens', t('metricTokens'),
+            today ? formatTokens(today.tokens, active) : '—',
+            today ? t('metricHintTokens') : t('metricNoData')),
+          metricCard('spend', t('metricAmount'),
+            today ? formatTodayMoney(today.byCurrency) : '—',
+            today ? t('metricHintSpend') : t('metricNoData'))
+        )
+      )
+
       let activeEngine = SEARCH_ENGINES[0]
       for (let index = 0; index < SEARCH_ENGINES.length; index += 1) {
         if (SEARCH_ENGINES[index].id === searchEngine) {
@@ -1780,6 +1975,7 @@ window.__ModuleLoader__.load({
             )
           ),
           bgOpen ? bgBar : null,
+          metricsNode,
           webNode,
           todosNode,
           appsNode,
@@ -1875,6 +2071,12 @@ window.__ModuleLoader__.load({
       '.dswb-sessionGroupHead{display:flex;align-items:center;gap:8px;padding:8px 20px 2px;font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
       '.dswb-sessionGroupTitle{font-weight:600;color:var(--dswb-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dswb-groupCount{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;border-radius:999px;border:1px solid var(--dswb-alias-border-l1);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}',
+      '.dswb-metricsSection{display:flex;flex-direction:column;gap:10px}',
+      '.dswb-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}',
+      '.dswb-metric{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--dswb-alias-border-l1);border-radius:14px;background:var(--dswb-alias-bg-layer-1);min-width:0}',
+      '.dswb-metricLabel{font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
+      '.dswb-metricValue{font-size:22px;font-weight:650;letter-spacing:-.01em;color:var(--dswb-alias-label-primary);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-metricHint{font-size:11px;color:var(--dswb-alias-label-secondary);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dswb-recentBody{display:flex;flex-direction:column}',
       '.dswb-webCard{overflow:hidden}',
       '.dswb-webForm{display:flex;align-items:center;gap:10px;padding:14px 20px 0}',
@@ -1960,7 +2162,7 @@ window.__ModuleLoader__.load({
       '.dswb-foot{margin:2px 0 0;padding:0 2px;color:var(--dsw-alias-label-secondary);font-size:11.5px;text-align:center;opacity:.9}',
       '.dswb-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:40;max-width:80vw;padding:9px 15px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);box-shadow:0 8px 26px color-mix(in srgb,var(--dsw-alias-label-primary) 18%,transparent);font-size:12.5px}',
       '@media (max-width:820px){.dswb-quick{grid-template-columns:minmax(0,1fr)}}',
-      '@media (max-width:720px){.dswb-appGrid{grid-template-columns:minmax(0,1fr)}}',
+      '@media (max-width:720px){.dswb-appGrid{grid-template-columns:minmax(0,1fr)}.dswb-metrics{grid-template-columns:minmax(0,1fr)}}',
       '@media (max-width:640px){.dswb-hero{flex-direction:column;align-items:flex-start}.dswb-heroAction{padding-bottom:0}.dswb-cardHead{flex-wrap:wrap}.dswb-search{width:100%;max-width:none}.dswb-catDesc{display:none}.dswb-addInput{width:100%;max-width:none}.dswb-addForm{flex-basis:100%;justify-content:flex-start}.dswb-webForm{flex-wrap:wrap}.dswb-engines{width:100%;justify-content:flex-start}.dswb-webInput{flex-basis:100%}.dswb-catCreate .dswb-addInput{width:100%;max-width:none}}',
       '@media (prefers-reduced-motion:reduce){.dswb-dot.is-on{animation:none}}',
       '.dswb-root ::-webkit-scrollbar{width:10px;height:10px}',

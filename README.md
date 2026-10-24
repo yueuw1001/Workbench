@@ -4,6 +4,12 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 
 ## 功能
 
+### 账户与用量
+
+- 工作台顶部三张卡片：**剩余余额、今日使用 Token、今日使用金额**。
+- 余额来自 `dsh-api-dashboard` 的 `/api-dashboard/balances?stale=1`（取 `platform: "deepseek"` 的 `total`），不可用时回退核心 account 远端；打开工作台时读取一次。
+- 今日 Token / 金额来自会话的 `queryBalanceCost` 投影（`todayTokens` / `todayByCurrency`），随会话存储实时更新；数据缺失时显示「—」。
+
 ### 网页搜索 + 最近书签
 
 - 支持 **百度 / Bing / Google** 三种搜索引擎：标题右侧一个固定方框内放三个方块，点击方块即设置，方框底部显示当前选择并打勾；选择会记在 `localStorage`（`dsh.workbench.searchEngine.v1`）。
