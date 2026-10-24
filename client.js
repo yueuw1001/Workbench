@@ -46,6 +46,8 @@ window.__ModuleLoader__.load({
       chipRunning: '个运行中',
       newSession: '新建会话',
       recent: '最近会话',
+      recentShowAll: '点击数字展开全部会话',
+      recentCollapse: '点击数字收起会话',
       search: '搜索会话',
       running: '运行中',
       emptyTitle: '还没有会话',
@@ -148,6 +150,8 @@ window.__ModuleLoader__.load({
       chipRunning: 'running',
       newSession: 'New session',
       recent: 'Recent sessions',
+      recentShowAll: 'Click the count to show all sessions',
+      recentCollapse: 'Click the count to collapse sessions',
       search: 'Search sessions',
       running: 'Running',
       emptyTitle: 'No sessions yet',
@@ -1153,6 +1157,7 @@ window.__ModuleLoader__.load({
       const sessionsKey = sessions && Array.isArray(sessions.ids) ? sessions.ids.join('|') : ''
       const [appsOpen, setAppsOpen] = useState(true)
       const [recentOpen, setRecentOpen] = useState(true)
+      const [recentAll, setRecentAll] = useState(false)
       const [todos, setTodos] = useState(loadTodos)
       const [todoDraft, setTodoDraft] = useState('')
       const [appCats, setAppCats] = useState(function () { return loadCategories(APP_CATS_KEY) })
@@ -1310,8 +1315,8 @@ window.__ModuleLoader__.load({
         const matched = needle === ''
           ? rows
           : rows.filter(function (row) { return row.title.toLowerCase().indexOf(needle) !== -1 })
-        return matched.slice(0, RECENT_LIMIT)
-      }, [rows, query])
+        return recentAll ? matched : matched.slice(0, RECENT_LIMIT)
+      }, [rows, query, recentAll])
 
       function showNotice(key) {
         setNotice({ id: Date.now() + ':' + Math.random(), text: t(key) })
@@ -2276,10 +2281,23 @@ window.__ModuleLoader__.load({
               onClick: function () { setRecentOpen(function (open) { return !open }) },
             },
               h('span', { key: 'text', className: 'dswb-sectionLabel' }, t('recent')),
-              h('span', { key: 'count', className: 'dswb-count' }, String(total)),
               h('span', { key: 'chevron', className: recentOpen ? 'dswb-toggleChevron is-open' : 'dswb-toggleChevron' },
                 h(IconChevron, { size: 14 }))
-            )
+            ),
+            h('button', {
+              key: 'count',
+              type: 'button',
+              className: 'dswb-count dswb-countButton',
+              title: recentAll ? t('recentCollapse') : t('recentShowAll'),
+              'aria-label': recentAll ? t('recentCollapse') : t('recentShowAll'),
+              'aria-expanded': recentAll,
+              'aria-controls': 'dswb-recent-body',
+              onClick: function () {
+                const next = !recentAll
+                setRecentAll(next)
+                if (next) setRecentOpen(true)
+              },
+            }, String(total))
           ),
           recentOpen ? search : null
         ),
@@ -2515,6 +2533,9 @@ window.__ModuleLoader__.load({
       '.dswb-bookmarkDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}',
       '.dswb-bookmarkDelete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}',
       '.dswb-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 6px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:500;font-variant-numeric:tabular-nums}',
+      '.dswb-countButton{background:transparent;font-family:inherit;cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease}',
+      '.dswb-countButton:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}',
+      '.dswb-countButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dswb-search{width:210px;max-width:46vw;box-sizing:border-box;padding:7px 11px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s ease}',
       '.dswb-search::placeholder{color:var(--dsw-alias-label-secondary);opacity:.85}',
       '.dswb-search:focus-visible{border-color:var(--dsw-alias-brand-primary)}',
