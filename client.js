@@ -1420,13 +1420,13 @@ window.__ModuleLoader__.load({
       )
 
       const webNode = h('section', { key: 'web', className: 'dswb-card dswb-webCard', 'aria-label': t('webSearch') },
-        h('div', { key: 'head', className: 'dswb-cardHead' },
-          h('h2', { key: 'title', className: 'dswb-cardTitle' },
-            h('span', { key: 'label', className: 'dswb-sectionLabel' }, t('webSearch'))
+        h('div', { key: 'head', className: 'dswb-cardHead dswb-webHead' },
+          h('div', { key: 'copy', className: 'dswb-webHeadCopy' },
+            h('h2', { key: 'title', className: 'dswb-cardTitle' },
+              h('span', { key: 'label', className: 'dswb-sectionLabel' }, t('webSearch'))
+            ),
+            h('span', { key: 'hint', className: 'dswb-sectionHint' }, t('webSearchHint'))
           ),
-          h('span', { key: 'hint', className: 'dswb-sectionHint' }, t('webSearchHint'))
-        ),
-        h('form', { key: 'form', className: 'dswb-webForm', onSubmit: handleWebSearch },
           h('div', { key: 'engines', className: 'dswb-engines', role: 'group', 'aria-label': t('webSearchEngine') },
             SEARCH_ENGINES.map(function (engine) {
               const active = searchEngine === engine.id
@@ -1435,10 +1435,14 @@ window.__ModuleLoader__.load({
                 type: 'button',
                 className: active ? 'dswb-engine is-active' : 'dswb-engine',
                 'aria-pressed': active,
+                title: t(engine.labelKey),
+                'aria-label': t(engine.labelKey),
                 onClick: function () { setSearchEngine(engine.id) },
               }, t(engine.labelKey))
             })
-          ),
+          )
+        ),
+        h('form', { key: 'form', className: 'dswb-webForm', onSubmit: handleWebSearch },
           h('input', {
             key: 'input',
             type: 'search',
@@ -1851,11 +1855,13 @@ window.__ModuleLoader__.load({
       '.dswb-recentBody{display:flex;flex-direction:column}',
       '.dswb-webCard{overflow:hidden}',
       '.dswb-webForm{display:flex;align-items:center;gap:10px;padding:14px 20px 0}',
-      '.dswb-engines{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-layer-1);flex:none}',
-      '.dswb-engine{padding:5px 10px;border:none;border-radius:7px;background:transparent;color:var(--dswb-alias-label-secondary);font-family:inherit;font-size:12px;cursor:pointer;transition:background .15s ease,color .15s ease}',
-      '.dswb-engine:hover{background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-label-primary)}',
-      '.dswb-engine.is-active{background:var(--dswb-alias-label-primary);color:var(--dswb-alias-bg-base);font-weight:600}',
-      '.dswb-engine:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:1px}',
+      '.dswb-webHead{align-items:center}',
+      '.dswb-webHeadCopy{display:flex;flex-direction:column;gap:3px;min-width:0}',
+      '.dswb-engines{display:flex;align-items:center;gap:8px;flex:none}',
+      '.dswb-engine{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;padding:4px;border:1px solid var(--dswb-alias-border-l1);border-radius:12px;background:var(--dswb-alias-bg-layer-1);color:var(--dswb-alias-label-secondary);font-family:inherit;font-size:10.5px;font-weight:600;line-height:1.2;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease,color .15s ease;word-break:break-word}',
+      '.dswb-engine:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 45%,var(--dswb-alias-border-l1));background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-label-primary)}',
+      '.dswb-engine.is-active{border-color:var(--dswb-alias-brand-primary);background:color-mix(in srgb,var(--dswb-alias-brand-primary) 13%,var(--dswb-alias-bg-layer-1));color:var(--dswb-alias-label-primary);box-shadow:inset 0 0 0 1px var(--dswb-alias-brand-primary)}',
+      '.dswb-engine:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
       '.dswb-webInput{flex:1;min-width:0;box-sizing:border-box;padding:8px 12px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-primary);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s ease}',
       '.dswb-webInput:focus-visible{border-color:var(--dswb-alias-brand-primary)}',
       '.dswb-webInput::placeholder{color:var(--dswb-alias-label-secondary);opacity:.85}',

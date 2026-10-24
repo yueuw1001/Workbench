@@ -6,7 +6,7 @@ DeepSeek Harness Web 插件：左侧边栏唯一的「工作台」入口，集�
 
 ### 网页搜索 + 最近书签
 
-- 支持 **百度 / Bing / Google** 三种搜索引擎，可在输入框左侧切换，选择会记在 `localStorage`（`dsh.workbench.searchEngine.v1`）。
+- 支持 **百度 / Bing / Google** 三种搜索引擎；标题右侧的三个方块点击即可设置当前引擎，选择会记在 `localStorage`（`dsh.workbench.searchEngine.v1`）。
 - 输入关键词会按当前搜索引擎打开结果页；输入域名或 `http(s)` 网址则直接打开该网页。
 - 优先通过 **`dsh-builtin-browser`** 打开：工作台调用该插件在页面暴露的 `__dshBuiltinBrowser.openPanel(sessionId, url)`，在会话右侧栏打开网页并切换到该会话；插件不可用或侧栏未挂载时回退到浏览器新标签页。
 - 打开过的网页自动记入「最近书签」（最多 8 条，去重、新的在前），可点击再次打开或删除。
