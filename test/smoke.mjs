@@ -102,6 +102,9 @@ const ctx = {
       if (key === 'workbench.apps') {
         return [{ options: { id: 'stock-analyzer', order: 30, label: () => 'Stock' } }]
       }
+      if (key === 'sidebar.panellist') {
+        return [{ options: { id: 'smoke-panel', order: 1, label: () => 'Smoke panel' } }]
+      }
       return []
     },
     subscribe() { return () => {} },
@@ -172,13 +175,14 @@ const store = {
   'dsh.workbench.sessionAssign.v1': JSON.stringify({ 'smoke-session': 'sesscat-1' }),
   'dsh.workbench.bookmarks.v1': JSON.stringify([{ url: 'https://example.com', title: 'Example' }]),
   'dsh.workbench.todos.v1': JSON.stringify([{ id: 't1', title: 'Smoke todo', done: false }]),
+  'dsh.workbench.pinned.v1': JSON.stringify(['smoke-panel']),
 }
 context.window.localStorage = {
   getItem(key) { return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null },
   setItem(key, value) { store[key] = String(value) },
 }
 const seededTree = main.component(pageProps)
-for (const className of ['dswb-app', 'dswb-catCreate', 'dswb-bookmark', 'dswb-sessionGroups', 'dswb-module', 'dswb-dropZone']) {
+for (const className of ['dswb-app', 'dswb-catCreate', 'dswb-bookmark', 'dswb-sessionGroups', 'dswb-module', 'dswb-dropZone', 'dswb-appPinned', 'dswb-appUnpin']) {
   if (!hasClass(seededTree, className)) throw new Error(`seeded page is missing .${className}`)
 }
 console.log('page render smoke ok')

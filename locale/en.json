@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Workbench",
-    "description": "A DeepSeek Harness sidebar workbench with account usage, web search and bookmarks, to-dos, app and session categories you can organize by dragging, and a custom background; the Hot info (dsh-hotspot) and Notes (dsh-scratchpad) plugins stay as independent sidebar panels."
+    "description": "A DeepSeek Harness sidebar workbench with account usage, web search and bookmarks, to-dos, and draggable session categories; sidebar plugins are dragged into the workbench manually, with no automatic adoption or grouping."
   }
 }

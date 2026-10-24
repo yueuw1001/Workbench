@@ -33,16 +33,6 @@ window.__ModuleLoader__.load({
     const NS = 'workbench'
     const PANEL_ID = 'workbench'
     const RECENT_LIMIT = 8
-    // 这些面板留在侧边栏当独立图标：工作台既不把它们收进「我的应用」，
-    // 也不会隐藏它们在侧边栏的行（见 useSidebarPanels / WorkbenchIcon）。
-    const SIDEBAR_KEEP_IDS = {
-      'us-close-report': true,
-      'market-radar': true,
-      'stock-analyzer': true,
-      'task-monitor': true,
-      'hotspot': true,
-      'scratchpad': true,
-    }
 
     const zh = {
       panel: '工作台',
@@ -87,7 +77,6 @@ window.__ModuleLoader__.load({
       categoryDelete: '删除分类（项目回到原来的分组）',
       categoryCustomDesc: '自定义分类',
       dragSessionsHint: '拖动会话到分类',
-      appAutoZone: '拖到这里恢复自动分类',
       unclassified: '未分类',
       dropHere: '拖到这里',
       noticeBrowserUnavailable: '内置浏览器不可用，无法打开网页。',
@@ -107,9 +96,12 @@ window.__ModuleLoader__.load({
       backgroundNone: '未设置',
       backgroundSet: '已设置',
       apps: '我的应用',
-      appsHint: '按类型自动归类 · 可拖动',
-      appsEmpty: '暂无已注册的应用',
-      appsEmptyHint: '插件注册到 workbench.apps 后会自动出现在这里。',
+      appsHint: '从左侧拖入插件 · 可拖动',
+      appsEmpty: '还没有应用',
+      appsEmptyHint: '从左侧把插件拖进来；注册到 workbench.apps 的应用也会出现在这里。',
+      dragPluginHere: '从左侧把插件拖到这里',
+      appPinnedDesc: '侧边栏插件',
+      unpin: '从工作台移除',
       pluginsApp: '插件',
       pluginsAppDesc: '安装、启用与配置插件',
       catSystem: '系统',
@@ -131,7 +123,7 @@ window.__ModuleLoader__.load({
       appBillDesc: '每轮/每会话花费、预算与全账户费用报告',
       appPluginsDesc: '安装、启用与配置插件',
       appSchedulesDesc: '查看与管理定时提醒',
-      footNote: '热点信息与便签已独立到侧边栏；应用按类型自动归类，新插件的侧边栏面板会自动收进工作台；会话列表实时更新。',
+      footNote: '从左侧把插件拖进工作台；不再自动收纳，未拖入的插件留在侧边栏；会话列表实时更新。',
       noticePanelMissing: '该面板未安装或已停用。',
       noticeActionUnavailable: '操作暂不可用，请稍后重试。',
       noticeBgType: '请选择图片文件。',
@@ -182,7 +174,6 @@ window.__ModuleLoader__.load({
       categoryDelete: 'Delete category (items return to their default group)',
       categoryCustomDesc: 'Custom category',
       dragSessionsHint: 'Drag sessions into a category',
-      appAutoZone: 'Drop here to return to automatic grouping',
       unclassified: 'Uncategorized',
       dropHere: 'Drop here',
       noticeBrowserUnavailable: 'The built-in browser is unavailable; could not open the page.',
@@ -202,9 +193,12 @@ window.__ModuleLoader__.load({
       backgroundNone: 'Not set',
       backgroundSet: 'Set',
       apps: 'My apps',
-      appsHint: 'Grouped automatically · drag to a category',
-      appsEmpty: 'No apps registered yet',
-      appsEmptyHint: 'A plugin appears here after it registers into workbench.apps.',
+      appsHint: 'Drag a sidebar plugin in · drag to arrange',
+      appsEmpty: 'No apps yet',
+      appsEmptyHint: 'Drag a sidebar plugin in; apps registered into workbench.apps also appear here.',
+      dragPluginHere: 'Drag a sidebar plugin here',
+      appPinnedDesc: 'Sidebar plugin',
+      unpin: 'Remove from workbench',
       pluginsApp: 'Plugins',
       pluginsAppDesc: 'Install, enable, and configure plugins',
       catSystem: 'System',
@@ -226,7 +220,7 @@ window.__ModuleLoader__.load({
       appBillDesc: 'Per-turn and per-session spend, budget, and account-wide reports',
       appPluginsDesc: 'Install, enable, and configure plugins',
       appSchedulesDesc: 'Review and manage scheduled reminders',
-      footNote: 'Hot info and Notes now live in their own sidebar panels; apps are grouped automatically and new plugin panels are adopted into the workbench; session data stays live.',
+      footNote: 'Drag a sidebar plugin into the workbench; nothing is adopted automatically, and unpinned plugins stay in the sidebar; session data stays live.',
       noticePanelMissing: 'That panel is not installed or is disabled.',
       noticeActionUnavailable: 'That action is unavailable right now.',
       noticeBgType: 'Please choose an image file.',
@@ -603,18 +597,22 @@ window.__ModuleLoader__.load({
 
     /**
      * Sidebar glyph: a bento-style workbench of four panels. The same component
-     * hides the sidebar rows of every panel the workbench adopts, so a plugin
-     * that registers a global panel moves into the workbench by itself.
+     * hides the sidebar row of each panel that was deliberately dragged into
+     * the workbench; nothing is adopted automatically.
      */
     function WorkbenchIcon(props) {
       const size = props !== null && props !== undefined && typeof props.size === 'number' ? props.size : 18
       const active = props !== null && props !== undefined && !!props.active
       useActiveLocale(moduleLocale)
       const panels = useSidebarPanels()
+      const [pinnedIds] = usePinnedIds()
+      const pinned = {}
+      for (let index = 0; index < pinnedIds.length; index += 1) pinned[pinnedIds[index]] = true
       const selectors = []
       for (let index = 0; index < panels.length; index += 1) {
         const panel = panels[index]
         if (!panel || panel.id === PANEL_ID) continue
+        if (!pinned[panel.id]) continue
         const label = String(panel.label || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"')
         if (label === '') continue
         selectors.push('nav[aria-label="全局面板"] button[aria-label="' + label + '"]')
@@ -808,7 +806,6 @@ window.__ModuleLoader__.load({
         for (let index = 0; index < entries.length; index += 1) {
           const options = entries[index] && entries[index].options ? entries[index].options : {}
           if (typeof options.id !== 'string' || options.id === '' || options.id === PANEL_ID) continue
-          if (SIDEBAR_KEEP_IDS[options.id]) continue
           let label = options.label
           if (typeof label === 'function') {
             try { label = label() } catch (error) { label = undefined }
@@ -864,11 +861,15 @@ window.__ModuleLoader__.load({
     const SESSION_CATS_KEY = 'dsh.workbench.sessionCats.v1'
     const SESSION_ASSIGN_KEY = 'dsh.workbench.sessionAssign.v1'
     const BOOKMARKS_KEY = 'dsh.workbench.bookmarks.v1'
+    const PINNED_KEY = 'dsh.workbench.pinned.v1'
+    const PINS_EVENT = 'dsh-workbench:pins'
+    const PANEL_MIME = 'application/x-dsh-workbench-panel'
     const BACKGROUND_MAX_BYTES = 2 * 1024 * 1024
     const TODO_MAX_LENGTH = 120
     const CATEGORY_MAX_LENGTH = 24
     const MAX_CATEGORIES = 20
     const MAX_BOOKMARKS = 8
+    const MAX_PINNED = 20
 
     const SEARCH_ENGINES = [
       { id: 'baidu', labelKey: 'engineBaidu', url: 'https://www.baidu.com/s?wd=' },
@@ -1018,6 +1019,38 @@ window.__ModuleLoader__.load({
       saveJson(BOOKMARKS_KEY, rows)
     }
 
+    function loadPinned() {
+      const parsed = loadJson(PINNED_KEY, [])
+      if (!Array.isArray(parsed)) return []
+      const ids = []
+      for (let index = 0; index < parsed.length; index += 1) {
+        const id = parsed[index]
+        if (typeof id !== 'string' || id === '' || ids.indexOf(id) !== -1) continue
+        ids.push(id)
+        if (ids.length >= MAX_PINNED) break
+      }
+      return ids
+    }
+
+    function savePinned(ids) {
+      saveJson(PINNED_KEY, Array.isArray(ids) ? ids.slice(0, MAX_PINNED) : [])
+    }
+
+    function usePinnedIds() {
+      const [ids, setIds] = useState(loadPinned)
+      useEffect(function () {
+        if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return undefined
+        const sync = function () { setIds(loadPinned()) }
+        window.addEventListener('storage', sync)
+        window.addEventListener(PINS_EVENT, sync)
+        return function () {
+          window.removeEventListener('storage', sync)
+          window.removeEventListener(PINS_EVENT, sync)
+        }
+      }, [])
+      return [ids, setIds]
+    }
+
     function newId(prefix) {
       try {
         if (typeof crypto !== 'undefined' && crypto && typeof crypto.randomUUID === 'function') {
@@ -1038,31 +1071,31 @@ window.__ModuleLoader__.load({
 
       const apps = useAppEntries()
       const sidebarPanels = useSidebarPanels()
+      const [pinnedIds, setPinnedIds] = usePinnedIds()
       const renderSlot = typeof props.renderSlot === 'function' ? props.renderSlot : null
-      // Apps that self-register into workbench.apps come first; every global
-      // sidebar panel not given explicitly is adopted automatically, so a new
-      // plugin moves itself here by registering a panel in the sidebar.
+      // Only apps that self-register into workbench.apps and plugins the user
+      // explicitly dragged in are shown; sidebar panels are never adopted
+      // automatically.
       const appEntries = []
       const seenApps = {}
+      const pinnedSet = {}
+      for (let index = 0; index < pinnedIds.length; index += 1) pinnedSet[pinnedIds[index]] = true
       const pushApp = function (id, label, source) {
         if (typeof id !== 'string' || id === '' || seenApps[id]) return
         seenApps[id] = true
         appEntries.push({
           id: id,
           label: label,
-          description: APP_DESCRIPTIONS[id] ? t(APP_DESCRIPTIONS[id]) : '',
+          description: source === 'pinned'
+            ? t('appPinnedDesc')
+            : (APP_DESCRIPTIONS[id] ? t(APP_DESCRIPTIONS[id]) : ''),
           source: source,
-          category: classifyApp(id, label),
         })
       }
       apps.forEach(function (app) { pushApp(app.id, app.label, 'registered') })
-      sidebarPanels.forEach(function (panel) { pushApp(panel.id, panel.label, 'sidebar') })
-      const appGroups = []
-      for (let index = 0; index < CATEGORY_DEFS.length; index += 1) {
-        const def = CATEGORY_DEFS[index]
-        const matched = appEntries.filter(function (app) { return app.category === def.id })
-        if (matched.length > 0) appGroups.push({ def: def, apps: matched })
-      }
+      sidebarPanels.forEach(function (panel) {
+        if (pinnedSet[panel.id]) pushApp(panel.id, panel.label, 'pinned')
+      })
 
       const sessions = typeof props.useSessions === 'function'
         ? props.useSessions(function (state) { return state })
@@ -1097,6 +1130,82 @@ window.__ModuleLoader__.load({
       useEffect(function () { saveBookmarks(bookmarks) }, [bookmarks])
       useEffect(function () { saveSearchEngine(searchEngine) }, [searchEngine])
       useEffect(function () { saveBackground(background) }, [background])
+
+      // Make the shell's own sidebar rows draggable while the workbench is
+      // open, so a plugin can be pulled straight into the app area. The rows
+      // are rendered by the shell, so the attribute and the drag payload are
+      // attached to the existing buttons; a MutationObserver re-applies them
+      // after the shell re-renders a row.
+      const dragPanelsKey = sidebarPanels.map(function (panel) { return panel.id + ':' + panel.label }).join('|')
+      useEffect(function () {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return undefined
+        if (!document.body) return undefined
+        const byLabel = {}
+        for (let index = 0; index < sidebarPanels.length; index += 1) {
+          const panel = sidebarPanels[index]
+          if (panel && panel.id !== PANEL_ID && panel.label) byLabel[panel.label] = panel
+        }
+        let frame = 0
+        const apply = function () {
+          frame = 0
+          const navs = document.querySelectorAll('nav[aria-label="全局面板"], nav[aria-label="Global panels"]')
+          for (let navIndex = 0; navIndex < navs.length; navIndex += 1) {
+            const buttons = navs[navIndex].querySelectorAll('button[aria-label]')
+            for (let index = 0; index < buttons.length; index += 1) {
+              const button = buttons[index]
+              if (!byLabel[button.getAttribute('aria-label')]) continue
+              if (button.getAttribute('draggable') === 'true') continue
+              button.setAttribute('draggable', 'true')
+              button.setAttribute('data-dswb-drag', '1')
+            }
+          }
+        }
+        const schedule = function () {
+          if (frame) return
+          if (typeof window.requestAnimationFrame === 'function') frame = window.requestAnimationFrame(apply)
+          else frame = window.setTimeout(apply, 0)
+        }
+        apply()
+        let observer
+        try {
+          if (typeof MutationObserver === 'function') {
+            observer = new MutationObserver(schedule)
+            observer.observe(document.body, { childList: true, subtree: true })
+          }
+        } catch (error) {
+          observer = undefined
+        }
+        const onDragStart = function (event) {
+          const target = event.target && typeof event.target.closest === 'function'
+            ? event.target.closest('nav[aria-label="全局面板"] button[aria-label], nav[aria-label="Global panels"] button[aria-label]')
+            : null
+          if (!target) return
+          const panel = byLabel[target.getAttribute('aria-label')]
+          if (!panel) return
+          const payload = JSON.stringify({ kind: 'panel', id: panel.id })
+          try {
+            event.dataTransfer.setData(PANEL_MIME, payload)
+            event.dataTransfer.setData('text/plain', payload)
+            event.dataTransfer.effectAllowed = 'copy'
+          } catch (error) {
+            // The drop target still gets the standard text/plain payload.
+          }
+        }
+        document.addEventListener('dragstart', onDragStart, true)
+        return function () {
+          if (frame) {
+            if (typeof window.cancelAnimationFrame === 'function') window.cancelAnimationFrame(frame)
+            else window.clearTimeout(frame)
+          }
+          if (observer) observer.disconnect()
+          document.removeEventListener('dragstart', onDragStart, true)
+          const marked = document.querySelectorAll('button[data-dswb-drag="1"]')
+          for (let index = 0; index < marked.length; index += 1) {
+            marked[index].removeAttribute('draggable')
+            marked[index].removeAttribute('data-dswb-drag')
+          }
+        }
+      }, [dragPanelsKey])
 
       const [query, setQuery] = useState('')
       const [notice, setNotice] = useState(null)
@@ -1148,6 +1257,26 @@ window.__ModuleLoader__.load({
       function handleOpenPanel(panelId) {
         const result = runAction('panel', panelId)
         if (result !== 'ok') showNotice('noticePanelMissing')
+      }
+
+      function notifyPins() {
+        if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return
+        try { window.dispatchEvent(new Event(PINS_EVENT)) } catch (error) { /* ignore */ }
+      }
+
+      function pinPanel(panelId) {
+        if (typeof panelId !== 'string' || panelId === '' || pinnedIds.indexOf(panelId) !== -1) return
+        const next = pinnedIds.concat([panelId]).slice(0, MAX_PINNED)
+        savePinned(next)
+        setPinnedIds(next)
+        notifyPins()
+      }
+
+      function unpinPanel(panelId) {
+        const next = pinnedIds.filter(function (id) { return id !== panelId })
+        savePinned(next)
+        setPinnedIds(next)
+        notifyPins()
       }
 
       function addTodo(event) {
@@ -1313,9 +1442,13 @@ window.__ModuleLoader__.load({
 
       function readDrag(event) {
         try {
-          const raw = event.dataTransfer ? event.dataTransfer.getData('text/plain') : ''
+          let raw = ''
+          if (event.dataTransfer) {
+            try { raw = event.dataTransfer.getData(PANEL_MIME) } catch (error) { raw = '' }
+            if (!raw) raw = event.dataTransfer.getData('text/plain')
+          }
           const data = raw ? JSON.parse(raw) : null
-          if (data && (data.kind === 'app' || data.kind === 'session') && typeof data.id === 'string') return data
+          if (data && (data.kind === 'app' || data.kind === 'session' || data.kind === 'panel') && typeof data.id === 'string') return data
         } catch (error) {
           return null
         }
@@ -1331,6 +1464,29 @@ window.__ModuleLoader__.load({
         } catch (error) {
           // Dragging still works without the custom payload in some shells.
         }
+      }
+
+      function isPanelDrag(event) {
+        const types = event.dataTransfer && event.dataTransfer.types ? event.dataTransfer.types : []
+        for (let index = 0; index < types.length; index += 1) {
+          if (types[index] === PANEL_MIME) return true
+        }
+        return false
+      }
+
+      function dragOverPanel(event) {
+        if (!isPanelDrag(event)) return
+        event.preventDefault()
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+        if (dragOver !== 'panel') setDragOver('panel')
+      }
+
+      function dropPanel(event) {
+        const data = readDrag(event)
+        if (!data || data.kind !== 'panel') return
+        event.preventDefault()
+        setDragOver('')
+        pinPanel(data.id)
       }
 
       function dragOverCategory(event, key) {
@@ -1442,12 +1598,13 @@ window.__ModuleLoader__.load({
           })
 
       const renderAppCard = function (app, fallbackIcon, fallbackDescription) {
+        const pinned = app.source === 'pinned'
         const description = app.description || fallbackDescription
         let icon = null
         if (renderSlot) {
           try {
             icon = renderSlot(
-              app.source === 'sidebar' ? 'sidebar.panellist' : 'workbench.apps',
+              pinned ? 'sidebar.panellist' : 'workbench.apps',
               { size: 22, active: true },
               { only: app.id },
             )
@@ -1456,22 +1613,44 @@ window.__ModuleLoader__.load({
           }
         }
         if (!icon) icon = h(fallbackIcon, { size: 22 })
-        return h('button', {
+        const open = function () { handleOpenPanel(app.id) }
+        return h('div', {
           key: app.id,
-          type: 'button',
-          className: 'dswb-app',
+          className: pinned ? 'dswb-app dswb-appPinned is-pinned' : 'dswb-app',
+          role: 'button',
+          tabIndex: 0,
           draggable: true,
           onDragStart: function (event) { startDrag(event, 'app', app.id) },
           title: app.label + ' — ' + description,
           'aria-label': app.label + ' — ' + description,
-          onClick: function () { handleOpenPanel(app.id) },
+          onClick: open,
+          onKeyDown: function (event) {
+            if (event.target !== event.currentTarget) return
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              open()
+            }
+          },
         },
           h('span', { key: 'icon', className: 'dswb-appIcon' }, icon),
           h('span', { key: 'copy', className: 'dswb-appCopy' },
             h('span', { key: 'title', className: 'dswb-appTitle' }, app.label),
             h('span', { key: 'desc', className: 'dswb-appDesc' }, description)
           ),
-          h('span', { key: 'chevron', className: 'dswb-chevron' }, h(IconChevron, { size: 14 }))
+          h('span', { key: 'chevron', className: 'dswb-chevron' }, h(IconChevron, { size: 14 })),
+          pinned
+            ? h('button', {
+                key: 'unpin',
+                type: 'button',
+                className: 'dswb-appUnpin',
+                title: t('unpin'),
+                'aria-label': t('unpin'),
+                onClick: function (event) {
+                  event.stopPropagation()
+                  unpinPanel(app.id)
+                },
+              }, h(IconX, { size: 11 }))
+            : null
         )
       }
 
@@ -1481,7 +1660,6 @@ window.__ModuleLoader__.load({
         const catId = appAssign[appId]
         return typeof catId === 'string' && validAppCatIds[catId] === true ? catId : ''
       }
-      const hasAppAssignments = appEntries.some(function (app) { return appCategoryOf(app.id) !== '' })
       const customAppGroups = appCats.map(function (cat) {
         return {
           id: cat.id,
@@ -1489,12 +1667,7 @@ window.__ModuleLoader__.load({
           apps: appEntries.filter(function (app) { return appCategoryOf(app.id) === cat.id }),
         }
       })
-      const autoAppGroups = appGroups.map(function (group) {
-        return {
-          def: group.def,
-          apps: group.apps.filter(function (app) { return appCategoryOf(app.id) === '' }),
-        }
-      }).filter(function (group) { return group.apps.length > 0 })
+      const unclassifiedApps = appEntries.filter(function (app) { return appCategoryOf(app.id) === '' })
 
       const appCreateRow = h('form', { key: 'app-create', className: 'dswb-catCreate', onSubmit: addAppCategory },
         h('input', {
@@ -1510,13 +1683,13 @@ window.__ModuleLoader__.load({
         h('button', { key: 'add', type: 'submit', className: 'dswb-bgButton' }, t('categoryAdd'))
       )
 
-      const appAutoZone = h('div', {
-        key: 'app-auto-zone',
-        className: dragOver === 'appcat:' ? 'dswb-dropZone is-over' : 'dswb-dropZone',
-        onDragOver: function (event) { dragOverCategory(event, 'appcat:') },
+      const appPinZone = h('div', {
+        key: 'app-pin-zone',
+        className: dragOver === 'panel' ? 'dswb-dropZone is-over' : 'dswb-dropZone',
+        onDragOver: dragOverPanel,
         onDragLeave: function () { setDragOver('') },
-        onDrop: function (event) { dropApp(event, null) },
-      }, t('appAutoZone'))
+        onDrop: dropPanel,
+      }, t('dragPluginHere'))
 
       const customAppNodes = customAppGroups.map(function (cat) {
         const active = dragOver === 'appcat:' + cat.id
@@ -1551,34 +1724,39 @@ window.__ModuleLoader__.load({
         )
       })
 
-      const autoAppNodes = autoAppGroups.map(function (group) {
-        return h('div', { key: group.def.id, className: 'dswb-cat' },
-          h('div', { key: 'head', className: 'dswb-catHead' },
-            h('span', { key: 'glyph', className: 'dswb-catGlyph' }, h(group.def.icon, { size: 14 })),
-            h('h3', { key: 'title', className: 'dswb-catTitle' }, t(group.def.titleKey)),
-            h('span', { key: 'count', className: 'dswb-catCount' }, String(group.apps.length)),
-            h('span', { key: 'desc', className: 'dswb-catDesc' }, t(group.def.descKey))
-          ),
-          h('div', { key: 'grid', className: 'dswb-appGrid' },
-            group.apps.map(function (app) {
-              return renderAppCard(app, group.def.icon, t(group.def.descKey))
-            })
-          )
-        )
-      })
+      const unclassifiedAppNode = h('div', {
+        key: 'app-unclassified',
+        className: dragOver === 'appcat:' ? 'dswb-cat is-over' : 'dswb-cat',
+        onDragOver: function (event) { dragOverCategory(event, 'appcat:') },
+        onDragLeave: function () { setDragOver('') },
+        onDrop: function (event) { dropApp(event, null) },
+      },
+        h('div', { key: 'head', className: 'dswb-catHead' },
+          h('span', { key: 'glyph', className: 'dswb-catGlyph' }, h(IconGrid, { size: 14 })),
+          h('h3', { key: 'title', className: 'dswb-catTitle' }, t('unclassified')),
+          h('span', { key: 'count', className: 'dswb-catCount' }, String(unclassifiedApps.length))
+        ),
+        unclassifiedApps.length > 0
+          ? h('div', { key: 'grid', className: 'dswb-appGrid' },
+              unclassifiedApps.map(function (app) {
+                return renderAppCard(app, IconGrid, app.description || t('appPinnedDesc'))
+              })
+            )
+          : h('div', { key: 'drop', className: 'dswb-dropHint' }, t('dragPluginHere'))
+      )
 
-      const appsBody = appEntries.length === 0
+      const appsBody = appEntries.length === 0 && appCats.length === 0
         ? [
             appCreateRow,
+            appPinZone,
             h('div', { key: 'empty', className: 'dswb-empty dswb-appsEmpty' },
               h('p', { key: 'title', className: 'dswb-emptyTitle' }, t('appsEmpty')),
               h('p', { key: 'hint', className: 'dswb-emptyHint' }, t('appsEmptyHint'))
             ),
           ]
-        : [appCreateRow]
-          .concat(hasAppAssignments ? [appAutoZone] : [])
+        : [appCreateRow, appPinZone]
           .concat(customAppNodes)
-          .concat(autoAppNodes)
+          .concat(appEntries.length > 0 ? [unclassifiedAppNode] : [])
 
       const appsNode = h('section', { key: 'apps', className: 'dswb-apps', 'aria-label': t('apps') },
         h('div', { key: 'head', className: 'dswb-sectionHead' },
@@ -1599,7 +1777,13 @@ window.__ModuleLoader__.load({
           )
         ),
         appsOpen
-          ? h('div', { key: 'body', id: 'dswb-apps-body', className: 'dswb-appsBody' }, appsBody)
+          ? h('div', {
+              key: 'body',
+              id: 'dswb-apps-body',
+              className: 'dswb-appsBody',
+              onDragOver: dragOverPanel,
+              onDrop: dropPanel,
+            }, appsBody)
           : null
       )
 
@@ -2011,16 +2195,16 @@ window.__ModuleLoader__.load({
       '.dswb-heroMain{position:relative;z-index:1;min-width:0}',
       '.dswb-heroAction{position:relative;z-index:1;flex:none;padding-bottom:4px}',
       '.dswb-heroActions{display:flex;align-items:center;gap:10px}',
-      '.dswb-ghost{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:1px solid var(--dswb-alias-border-l1);border-radius:10px;background:var(--dswb-alias-bg-layer-1);color:var(--dswb-alias-label-secondary);cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease}',
-      '.dswb-ghost:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 45%,var(--dswb-alias-border-l1));color:var(--dswb-alias-label-primary);background:var(--dswb-alias-bg-layer-2)}',
-      '.dswb-ghost:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
-      '.dswb-bgBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border:1px solid var(--dswb-alias-border-l1);border-radius:12px;background:var(--dswb-alias-bg-layer-1);font-size:12px;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-bgLabel{font-weight:600;color:var(--dswb-alias-label-primary)}',
-      '.dswb-bgButton{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--dswb-alias-border-l1);border-radius:8px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-primary);font-family:inherit;font-size:12px;cursor:pointer;transition:border-color .15s ease,background .15s ease}',
-      '.dswb-bgButton:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 45%,var(--dswb-alias-border-l1));background:var(--dswb-alias-bg-layer-2)}',
-      '.dswb-bgButton:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
+      '.dswb-ghost{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease}',
+      '.dswb-ghost:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}',
+      '.dswb-ghost:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
+      '.dswb-bgBar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-bgLabel{font-weight:600;color:var(--dsw-alias-label-primary)}',
+      '.dswb-bgButton{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;cursor:pointer;transition:border-color .15s ease,background .15s ease}',
+      '.dswb-bgButton:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-layer-2)}',
+      '.dswb-bgButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
       '.dswb-fileInput{display:none}',
-      '.dswb-bgHint{font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
+      '.dswb-bgHint{font-size:11.5px;color:var(--dsw-alias-label-secondary)}',
       '.dswb-eyebrow{font-size:11px;font-weight:650;letter-spacing:.16em;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}',
       '.dswb-title{margin:8px 0 6px;font-size:30px;line-height:1.15;font-weight:650;letter-spacing:-.015em}',
       '.dswb-meta{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:0;font-size:12.5px;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums}',
@@ -2043,78 +2227,78 @@ window.__ModuleLoader__.load({
       '.dswb-cardTitle{display:flex;align-items:center;gap:9px;margin:0;font-size:14px;font-weight:600;letter-spacing:-.005em}',
       '.dswb-modulesHead{flex-wrap:wrap;row-gap:10px}',
       '.dswb-addForm{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;min-width:0}',
-      '.dswb-addInput{width:200px;max-width:42vw;box-sizing:border-box;padding:7px 11px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-primary);font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s ease}',
-      '.dswb-addInput::placeholder{color:var(--dswb-alias-label-secondary);opacity:.85}',
-      '.dswb-addInput:focus-visible{border-color:var(--dswb-alias-brand-primary)}',
+      '.dswb-addInput{width:200px;max-width:42vw;box-sizing:border-box;padding:7px 11px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s ease}',
+      '.dswb-addInput::placeholder{color:var(--dsw-alias-label-secondary);opacity:.85}',
+      '.dswb-addInput:focus-visible{border-color:var(--dsw-alias-brand-primary)}',
       '.dswb-modulesBody{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding:16px 20px}',
-      '.dswb-module{position:relative;display:flex;align-items:flex-start;gap:10px;min-height:84px;padding:14px;border:1px solid var(--dswb-alias-border-l1);border-radius:12px;background:var(--dswb-alias-bg-layer-1);cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .15s ease}',
-      '.dswb-module:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 45%,var(--dswb-alias-border-l1));background:var(--dswb-alias-bg-layer-2)}',
+      '.dswb-module{position:relative;display:flex;align-items:flex-start;gap:10px;min-height:84px;padding:14px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .15s ease}',
+      '.dswb-module:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-layer-2)}',
       '.dswb-module:active{transform:translateY(1px)}',
-      '.dswb-module:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
-      '.dswb-module.is-done{background:color-mix(in srgb,var(--dswb-alias-state-success-primary) 8%,var(--dswb-alias-bg-layer-1))}',
-      '.dswb-moduleCheck{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:6px;border:1px solid var(--dswb-alias-border-l2);color:var(--dswb-alias-brand-primary)}',
-      '.dswb-module.is-done .dswb-moduleCheck{background:color-mix(in srgb,var(--dswb-alias-state-success-primary) 18%,transparent);border-color:var(--dswb-alias-state-success-primary);color:var(--dswb-alias-state-success-primary)}',
+      '.dswb-module:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
+      '.dswb-module.is-done{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 8%,var(--dsw-alias-bg-layer-1))}',
+      '.dswb-moduleCheck{display:grid;place-items:center;width:20px;height:20px;flex:none;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-brand-primary)}',
+      '.dswb-module.is-done .dswb-moduleCheck{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 18%,transparent);border-color:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-state-success-primary)}',
       '.dswb-moduleBody{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;padding-right:16px}',
-      '.dswb-moduleTitle{font-size:13px;font-weight:600;line-height:1.45;word-break:break-word;color:var(--dswb-alias-label-primary)}',
-      '.dswb-module.is-done .dswb-moduleTitle{text-decoration:line-through;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-moduleState{align-self:flex-start;padding:1px 7px;border-radius:999px;border:1px solid color-mix(in srgb,var(--dswb-alias-state-success-primary) 40%,var(--dswb-alias-border-l1));color:var(--dswb-alias-state-success-primary);font-size:10px;font-weight:600}',
-      '.dswb-moduleDelete{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dswb-alias-label-secondary);opacity:.35;cursor:pointer;transition:opacity .15s ease,background .15s ease,color .15s ease}',
+      '.dswb-moduleTitle{font-size:13px;font-weight:600;line-height:1.45;word-break:break-word;color:var(--dsw-alias-label-primary)}',
+      '.dswb-module.is-done .dswb-moduleTitle{text-decoration:line-through;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-moduleState{align-self:flex-start;padding:1px 7px;border-radius:999px;border:1px solid color-mix(in srgb,var(--dsw-alias-state-success-primary) 40%,var(--dsw-alias-border-l1));color:var(--dsw-alias-state-success-primary);font-size:10px;font-weight:600}',
+      '.dswb-moduleDelete{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);opacity:.35;cursor:pointer;transition:opacity .15s ease,background .15s ease,color .15s ease}',
       '.dswb-module:hover .dswb-moduleDelete,.dswb-module:focus-within .dswb-moduleDelete{opacity:1}',
-      '.dswb-moduleDelete:hover{background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-state-error-primary)}',
-      '.dswb-moduleDelete:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:1px;opacity:1}',
-      '.dswb-modulesEmpty{padding:26px 20px;text-align:center;color:var(--dswb-alias-label-secondary);font-size:12.5px}',
+      '.dswb-moduleDelete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}',
+      '.dswb-moduleDelete:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px;opacity:1}',
+      '.dswb-modulesEmpty{padding:26px 20px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12.5px}',
       '.dswb-catCreate{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 20px}',
       '.dswb-apps .dswb-catCreate{padding:0 2px}',
       '.dswb-catCreate .dswb-addInput{width:190px;max-width:50vw}',
-      '.dswb-catHint{margin-left:auto;font-size:11px;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-groupDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dswb-alias-label-secondary);cursor:pointer;flex:none;transition:background .15s ease,color .15s ease}',
-      '.dswb-groupDelete:hover{background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-state-error-primary)}',
-      '.dswb-groupDelete:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:1px}',
-      '.dswb-dropZone{border:1px dashed var(--dswb-alias-border-l2);border-radius:10px;padding:9px 12px;text-align:center;font-size:11.5px;color:var(--dswb-alias-label-secondary);transition:border-color .15s ease,background .15s ease}',
-      '.dswb-dropZone.is-over{border-color:var(--dswb-alias-brand-primary);background:color-mix(in srgb,var(--dswb-alias-brand-primary) 8%,transparent);color:var(--dswb-alias-label-primary)}',
+      '.dswb-catHint{margin-left:auto;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-groupDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none;transition:background .15s ease,color .15s ease}',
+      '.dswb-groupDelete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}',
+      '.dswb-groupDelete:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dswb-dropZone{border:1px dashed var(--dsw-alias-border-l2);border-radius:10px;padding:9px 12px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-secondary);transition:border-color .15s ease,background .15s ease}',
+      '.dswb-dropZone.is-over{border-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent);color:var(--dsw-alias-label-primary)}',
       '.dswb-cat{border-radius:10px;outline:1px dashed transparent;outline-offset:4px;transition:background .15s ease,outline-color .15s ease}',
-      '.dswb-cat.is-over{outline-color:var(--dswb-alias-brand-primary);background:color-mix(in srgb,var(--dswb-alias-brand-primary) 8%,transparent)}',
-      '.dswb-dropHint{border:1px dashed var(--dswb-alias-border-l1);border-radius:8px;padding:10px;margin:2px 0 4px;text-align:center;font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
+      '.dswb-cat.is-over{outline-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent)}',
+      '.dswb-dropHint{border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:10px;margin:2px 0 4px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-secondary)}',
       '.dswb-sessionGroups{display:flex;flex-direction:column}',
       '.dswb-sessionGroup{transition:background .15s ease}',
-      '.dswb-sessionGroup.is-over{background:color-mix(in srgb,var(--dswb-alias-brand-primary) 8%,transparent)}',
-      '.dswb-sessionGroup + .dswb-sessionGroup{border-top:1px solid var(--dswb-alias-border-l1)}',
-      '.dswb-sessionGroupHead{display:flex;align-items:center;gap:8px;padding:8px 20px 2px;font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-sessionGroupTitle{font-weight:600;color:var(--dswb-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dswb-groupCount{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;border-radius:999px;border:1px solid var(--dswb-alias-border-l1);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}',
+      '.dswb-sessionGroup.is-over{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent)}',
+      '.dswb-sessionGroup + .dswb-sessionGroup{border-top:1px solid var(--dsw-alias-border-l1)}',
+      '.dswb-sessionGroupHead{display:flex;align-items:center;gap:8px;padding:8px 20px 2px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-sessionGroupTitle{font-weight:600;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-groupCount{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}',
       '.dswb-metricsSection{display:flex;flex-direction:column;gap:10px}',
       '.dswb-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}',
-      '.dswb-metric{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--dswb-alias-border-l1);border-radius:14px;background:var(--dswb-alias-bg-layer-1);min-width:0}',
-      '.dswb-metricLabel{font-size:11.5px;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-metricValue{font-size:22px;font-weight:650;letter-spacing:-.01em;color:var(--dswb-alias-label-primary);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dswb-metricHint{font-size:11px;color:var(--dswb-alias-label-secondary);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-metric{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);min-width:0}',
+      '.dswb-metricLabel{font-size:11.5px;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-metricValue{font-size:22px;font-weight:650;letter-spacing:-.01em;color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-metricHint{font-size:11px;color:var(--dsw-alias-label-secondary);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dswb-recentBody{display:flex;flex-direction:column}',
       '.dswb-webCard{overflow:hidden}',
       '.dswb-webForm{display:flex;align-items:center;gap:10px;padding:14px 20px 0}',
       '.dswb-webHead{align-items:center}',
       '.dswb-webHeadCopy{display:flex;flex-direction:column;gap:3px;min-width:0}',
-      '.dswb-engineBox{display:flex;flex-direction:column;gap:4px;width:196px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--dswb-alias-border-l1);border-radius:14px;background:var(--dswb-alias-bg-layer-1);flex:none}',
-      '.dswb-engineBoxLabel{font-size:11px;font-weight:600;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-engineSelected{font-size:11px;font-weight:600;color:var(--dswb-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-engineBox{display:flex;flex-direction:column;gap:4px;width:196px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);flex:none}',
+      '.dswb-engineBoxLabel{font-size:11px;font-weight:600;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-engineSelected{font-size:11px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.dswb-engines{display:flex;align-items:center;justify-content:center;gap:8px}',
-      '.dswb-engine{position:relative;display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;padding:4px;border:1px solid var(--dswb-alias-border-l1);border-radius:12px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-secondary);font-family:inherit;font-size:10.5px;font-weight:600;line-height:1.2;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease,color .15s ease;word-break:break-word}',
-      '.dswb-engine:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 45%,var(--dswb-alias-border-l1));background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-label-primary)}',
-      '.dswb-engine.is-active{border-color:var(--dswb-alias-brand-primary);background:color-mix(in srgb,var(--dswb-alias-brand-primary) 13%,var(--dswb-alias-bg-layer-1));color:var(--dswb-alias-label-primary);box-shadow:inset 0 0 0 1px var(--dswb-alias-brand-primary)}',
-      '.dswb-engineCheck{position:absolute;top:3px;right:3px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--dswb-alias-brand-primary);color:var(--dswb-alias-bg-base)}',
-      '.dswb-engine:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
-      '.dswb-webInput{flex:1;min-width:0;box-sizing:border-box;padding:8px 12px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-primary);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s ease}',
-      '.dswb-webInput:focus-visible{border-color:var(--dswb-alias-brand-primary)}',
-      '.dswb-webInput::placeholder{color:var(--dswb-alias-label-secondary);opacity:.85}',
+      '.dswb-engine{position:relative;display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;padding:4px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:10.5px;font-weight:600;line-height:1.2;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease,color .15s ease;word-break:break-word}',
+      '.dswb-engine:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}',
+      '.dswb-engine.is-active{border-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 13%,var(--dsw-alias-bg-layer-1));color:var(--dsw-alias-label-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-brand-primary)}',
+      '.dswb-engineCheck{position:absolute;top:3px;right:3px;display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-bg-base)}',
+      '.dswb-engine:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
+      '.dswb-webInput{flex:1;min-width:0;box-sizing:border-box;padding:8px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s ease}',
+      '.dswb-webInput:focus-visible{border-color:var(--dsw-alias-brand-primary)}',
+      '.dswb-webInput::placeholder{color:var(--dsw-alias-label-secondary);opacity:.85}',
       '.dswb-bookmarks{display:flex;flex-direction:column;gap:6px;padding:12px 20px 16px}',
-      '.dswb-bookmarksHead{font-size:11.5px;font-weight:600;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-bookmarksEmpty{margin:0;padding:2px 0 4px;font-size:12px;color:var(--dswb-alias-label-secondary)}',
-      '.dswb-bookmark{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-base);transition:border-color .15s ease}',
-      '.dswb-bookmark:hover{border-color:color-mix(in srgb,var(--dswb-alias-brand-primary) 40%,var(--dswb-alias-border-l1))}',
+      '.dswb-bookmarksHead{font-size:11.5px;font-weight:600;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-bookmarksEmpty{margin:0;padding:2px 0 4px;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.dswb-bookmark{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-base);transition:border-color .15s ease}',
+      '.dswb-bookmark:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 40%,var(--dsw-alias-border-l1))}',
       '.dswb-bookmarkOpen{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding:0;border:none;background:none;color:inherit;font-family:inherit;text-align:left;cursor:pointer}',
-      '.dswb-bookmarkTitle{font-size:12.5px;font-weight:600;color:var(--dswb-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dswb-bookmarkUrl{font-size:11px;color:var(--dswb-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-      '.dswb-bookmarkDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dswb-alias-label-secondary);cursor:pointer;flex:none}',
-      '.dswb-bookmarkDelete:hover{background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-state-error-primary)}',
+      '.dswb-bookmarkTitle{font-size:12.5px;font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-bookmarkUrl{font-size:11px;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+      '.dswb-bookmarkDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}',
+      '.dswb-bookmarkDelete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}',
       '.dswb-count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 6px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:11px;font-weight:500;font-variant-numeric:tabular-nums}',
       '.dswb-search{width:210px;max-width:46vw;box-sizing:border-box;padding:7px 11px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12.5px;outline:none;transition:border-color .15s ease}',
       '.dswb-search::placeholder{color:var(--dsw-alias-label-secondary);opacity:.85}',
@@ -2134,11 +2318,11 @@ window.__ModuleLoader__.load({
       '.dswb-sectionTitle{margin:0;font-size:14px;font-weight:600;letter-spacing:-.005em}',
       '.dswb-sectionHint{font-size:11.5px;color:var(--dsw-alias-label-secondary)}',
       '.dswb-sectionToggle{display:flex;align-items:center;gap:8px;width:100%;padding:0;border:none;border-radius:6px;background:none;color:inherit;font:inherit;font-size:14px;font-weight:600;letter-spacing:-.005em;text-align:left;cursor:pointer}',
-      '.dswb-sectionToggle:hover .dswb-sectionLabel{color:var(--dswb-alias-brand-primary)}',
+      '.dswb-sectionToggle:hover .dswb-sectionLabel{color:var(--dsw-alias-brand-primary)}',
       '.dswb-sectionToggle .dswb-sectionHint{margin-left:auto;font-weight:400;letter-spacing:0}',
-      '.dswb-sectionToggle:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:2px}',
+      '.dswb-sectionToggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',
       '.dswb-cardTitle .dswb-sectionToggle{width:auto}',
-      '.dswb-toggleChevron{display:inline-flex;flex:none;color:var(--dswb-alias-state-idle-primary);margin-left:2px}',
+      '.dswb-toggleChevron{display:inline-flex;flex:none;color:var(--dsw-alias-state-idle-primary);margin-left:2px}',
       '.dswb-toggleChevron svg{transition:transform .15s ease}',
       '.dswb-toggleChevron.is-open svg{transform:rotate(90deg)}',
       '.dswb-appsBody{display:flex;flex-direction:column;gap:14px}',
@@ -2153,7 +2337,12 @@ window.__ModuleLoader__.load({
       '.dswb-catCount{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:16px;padding:0 5px;border-radius:999px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}',
       '.dswb-catDesc{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-secondary);opacity:.85}',
       '.dswb-appGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}',
-      '.dswb-app{display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-width:0;transition:border-color .15s ease,background .15s ease,transform .15s ease}',
+      '.dswb-app{position:relative;display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);color:inherit;font-family:inherit;text-align:left;cursor:pointer;min-width:0;transition:border-color .15s ease,background .15s ease,transform .15s ease}',
+      '.dswb-app.is-pinned{padding-right:32px}',
+      '.dswb-app.is-pinned .dswb-chevron{display:none}',
+      '.dswb-appUnpin{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;opacity:.65;transition:opacity .15s ease,background .15s ease,color .15s ease}',
+      '.dswb-appUnpin:hover{opacity:1;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-state-error-primary)}',
+      '.dswb-appUnpin:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dswb-app:hover{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary) 45%,var(--dsw-alias-border-l1));background:var(--dsw-alias-bg-layer-2)}',
       '.dswb-app:active{transform:translateY(1px)}',
       '.dswb-app:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}',

@@ -1,6 +1,6 @@
 # 工作台 (dsh-workbench)
 
-DeepSeek Harness Web 插件：以左侧边栏的「工作台」为主入口，集中展示账户用量、网页搜索与最近书签、待办、可自定义分类并拖动整理的应用与会话。侧边栏里已有的「热点信息」（`dsh-hotspot`）与「便签」（`dsh-scratchpad`）保持独立面板，不再被工作台收纳。
+DeepSeek Harness Web 插件：左侧边栏的「工作台」入口，集中展示账户用量、网页搜索与最近书签、待办、可自定义分类的应用与会话。应用区不再自动收纳或自动分类——**从左侧边栏把插件拖进工作台**才会加入。
 
 ## 功能
 
@@ -14,64 +14,44 @@ DeepSeek Harness Web 插件：以左侧边栏的「工作台」为主入口，�
 
 - 支持 **百度 / Bing / Google** 三种搜索引擎：标题右侧一个固定方框内放三个方块，点击方块即设置，方框底部显示当前选择并打勾；选择会记在 `localStorage`（`dsh.workbench.searchEngine.v1`）。
 - 输入关键词会按当前搜索引擎打开结果页；输入域名或 `http(s)` 网址则直接打开该网页。
-- 优先通过 **`dsh-builtin-browser`** 打开：工作台调用该插件在页面暴露的 `__dshBuiltinBrowser.openPanel(sessionId, url)`，在会话右侧栏打开网页并切换到该会话；插件不可用或侧栏未挂载时回退到浏览器新标签页。
-- 打开过的网页自动记入「最近书签」（最多 8 条，去重、新的在前），可点击再次打开或删除。
-- 书签保存在 `localStorage`（`dsh.workbench.bookmarks.v1`）。
+- 优先通过 **`dsh-builtin-browser`** 打开：调用 `__dshBuiltinBrowser.openPanel(sessionId, url)` 在会话右侧栏打开并切换到该会话；不可用时回退浏览器新标签页。
+- 打开过的网页自动记入「最近书签」（最多 8 条，去重、新的在前），可点击再次打开或删除；书签存在 `dsh.workbench.bookmarks.v1`。
 
 ### 待办
 
 - 长方形卡片展示；标题栏输入内容即可添加。
-- 点击待办自动标记为「已完成」（再点一次撤销），右上角 × 删除；键盘 Enter/空格同样可切换。
-- 标题栏显示“已完成/总数”；数据保存在 `localStorage`（`dsh.workbench.todos.v1`，会自动迁移旧的 `dsh.workbench.modules.v1`）。
+- 点击标记为「已完成」（再点一次撤销），右上角 × 删除；键盘 Enter/空格同样可切换。
+- 数据保存在 `localStorage`（`dsh.workbench.todos.v1`，会自动迁移旧的 `dsh.workbench.modules.v1`）。
 
-### 自定义背景
+### 我的应用（手动拖入 + 自定义分类）
 
-- 问候区右侧的图片按钮打开背景设置：选择本地 JPG/PNG/WebP（建议小于 2MB）作为工作台背景，或清除背景。
-- 背景上方叠加一层半透明的主题色，保证文字可读；图片保存在 `localStorage`（`dsh.workbench.background.v1`）。
-
-### 我的应用（自动分类 + 自定义分类 + 拖动）
-
-- 自动分类规则保持不变（见下表），另外可以在应用区顶部**新建自定义分类**（最多 20 个）。
-- 应用卡片可**拖动**到自定义分类；拖动到「拖到这里恢复自动分类」区域可取消自定义归属。分类标题右侧 × 删除分类，分类内的应用回到自动分类。
-- 自定义分类与应用归属保存在 `localStorage`（`dsh.workbench.appCats.v1` / `dsh.workbench.appAssign.v1`）。
-- 点击「我的应用」标题行可展开/收起整个应用网格。
-
-工作台里当前会出现这些应用（个股分析、美国收盘报、资金雷达、任务监控已移回侧边栏，不再收纳）：
-
-| 分类 | 应用 | 来源 |
-| --- | --- | --- |
-| 费用与预算 | 费用统计（`dsh-bill`） | 从侧边栏自动收纳 |
-| 自动化 | 定时任务 | 从侧边栏自动收纳 |
-| 系统 | 插件 | 从侧边栏自动收纳 |
-
-自动分类规则（按 id + 标题关键词，先匹配者优先）：
-
-- `资金|雷达|fund|flow|radar` → 资金流向
-- `费用|账单|花费|成本|预算|用量|bill|cost|spend|expense|price|budget` → 费用与预算
-- `任务|自动化|监控|调度|task|monitor|auto|schedul|workflow` → 自动化
-- `个股|股票|行情|收盘|美股|报告|stock|equity|quote|close|report|market` → 行情分析
-- `插件|设置|系统|plugin|plugins|setting|settings` → 系统
-- 其余 → 其他
-
-卡片复用应用自己的图标与本地化标题，点击调用 `layout.selectPanel(id)` 打开对应面板；面板未注册时给出提示。
+- 应用区默认只有「从左侧把插件拖到这里」的投放区；**不会自动收纳、不会自动分类**。
+- 从左侧边栏按住任意插件图标，拖到应用区即可加入：
+  - 该插件的侧边栏行会被隐藏（只隐藏你拖入的那些）；
+  - 应用卡出现在「未分类」分组，点击打开对应面板；
+  - 应用卡右上角 × 把插件移出工作台，侧边栏图标恢复。
+- 可以在应用区顶部**新建自定义分类**（最多 20 个），把应用卡拖进分类；拖回「未分类」取消分类。
+- 拖入列表存在 `dsh.workbench.pinned.v1`；分类与归属存在 `dsh.workbench.appCats.v1` / `dsh.workbench.appAssign.v1`。
+- 显式注册到 `workbench.apps` 的应用会直接出现，无需拖入。
 
 ### 最近会话（自定义分类 + 拖动）
 
-- 最近会话列表可以**新建分类**（最多 20 个）；会话行可拖动到分类，或拖动到「未分类」取消归属。
+- 最近会话列表可以**新建分类**（最多 20 个）；会话行可拖动到分类，或拖到「未分类」取消归属。
 - 分类标题右侧 × 删除分类，分类内的会话回到「未分类」；搜索框继续用于过滤标题。
 - 分类与会话归属保存在 `localStorage`（`dsh.workbench.sessionCats.v1` / `dsh.workbench.sessionAssign.v1`）。
 - 点击「最近会话」标题行可展开/收起列表与搜索框。
 
-### 问候
+### 自定义背景
 
-按本地时间问候、日期、星期与每 30 秒刷新的时钟；会话总数与运行中数量。
+- 问候区右侧的图片按钮打开背景设置：选择本地 JPG/PNG/WebP（建议小于 2MB）作为工作台背景，或清除背景。
+- 图片保存在 `localStorage`（`dsh.workbench.background.v1`）。
 
-## 以后有任务插件：自己移动到工作台
+## 插件如何进入工作台
 
-工作台对两种方式都自动生效，新增插件不需要改工作台代码：
-
-1. **显式注册（推荐，可自定义图标/标题）**
-   插件的客户端半边注册到工作台的 `workbench.apps` 插槽：
+1. **手动拖入（推荐）**
+   在工作台打开时，左侧边栏的插件行会自动变成可拖动（`draggable`）；拖到「我的应用」投放区即可。拖入后侧边栏行隐藏，移出后恢复。
+2. **显式注册（不需要拖）**
+   插件客户端半边注册到 `workbench.apps`：
 
    ```js
    ctx.slots.inject('workbench.apps', () =>
@@ -82,35 +62,15 @@ DeepSeek Harness Web 插件：以左侧边栏的「工作台」为主入口，�
    )
    ```
 
-2. **零改动收纳**
-   插件照常注册 `sidebar.panellist`。工作台会自动读取侧边栏所有面板，把它们作为应用卡片纳入网格，并按标题归类；其侧边栏图标会被隐藏。
-
-两种来源都在每次插槽变化时重新读取，工作台面板打开或侧边栏更新后立即生效，无需重启。
+旧的「零改动自动收纳 + 自动分类」已取消：未拖入的插件始终留在侧边栏。
 
 ## 侧边栏入口
 
-- 侧边栏保留「工作台」入口，外加「热点信息」（`dsh-hotspot`）、「便签」（`dsh-scratchpad`），以及下面四个本地插件面板图标（还有新会话/会话列表等 shell 控件）。
-- 「热点信息」「便签」的 id（`hotspot` / `scratchpad`）写在 `SIDEBAR_KEEP_IDS` 里：工作台既不把它们收进「我的应用」，也不会隐藏它们的侧边栏图标。
-- 被收纳面板的侧边栏行由工作台图标内联的一条窄作用域规则隐藏：
+- 侧边栏保留「工作台」入口，以及所有**未被拖入**的插件行。
+- 只有拖入工作台的插件，其侧边栏行由工作台图标内联的一条窄作用域规则隐藏：
   `nav[aria-label="全局面板"] button[aria-label="<面板标题>"]`（英文对应 `Global panels`）→ `display:none`。
-- 语言不在中/英范围、或宿主改了导航按钮的无障碍标签时，那些图标会重新显示；功能不受影响。
-- 工作台被停用时，内联规则随图标一起消失，所有面板恢复原来的侧边栏图标，不会锁死。
-
-## 留在侧边栏的插件
-
-这些面板注册在 `sidebar.panellist`（`main` 面板注册不变），id 同时写进工作台的
-`SIDEBAR_KEEP_IDS` 不接管名单——工作台既不把它们收进「我的应用」，也不会隐藏它们的侧边栏图标：
-
-| 插件 | id | 修改文件 |
-| --- | --- | --- |
-| 个股智能分析 `dsh-stock-analyzer` | `stock-analyzer` | `stock-analyzer/client.js` |
-| 美国收盘报 `dsh-us-close-report` | `us-close-report` | `us-close-report/client.js` |
-| 市场资金雷达 `dsh-market-radar` | `market-radar` | `market-radar/client.js` |
-| 任务监控 `@local/task-monitor` | `task-monitor` | `task-monitor/client.js` |
-| 热点信息 `dsh-hotspot` | `hotspot` | 无（加入工作台 `SIDEBAR_KEEP_IDS`） |
-| 便签 `dsh-scratchpad` | `scratchpad` | 无（加入工作台 `SIDEBAR_KEEP_IDS`） |
-
-`dsh-bill`（费用统计）、内置「插件」与「定时任务」没有改动源码，仍走上面的「零改动收纳」。
+- 把插件移出工作台后规则立即消失，该行恢复；工作台被停用时所有行恢复，不会锁死。
+- 语言不在中/英范围、或宿主改了导航按钮的无障碍标签时，隐藏规则可能不生效；功能不受影响。
 
 ## 实现
 
@@ -119,12 +79,13 @@ DeepSeek Harness Web 插件：以左侧边栏的「工作台」为主入口，�
 | 侧边栏入口 | `sidebar.panellist`，`id = workbench`，`order = 5` |
 | 中央面板 | `main`，`key = workbench` |
 | 应用插槽 | `workbench.apps`（`main` 入口声明的 `list` 子插槽，scope `root`） |
-| 自动收纳来源 | `sidebar.panellist`（除 `workbench` 及 `SIDEBAR_KEEP_IDS` 内的独立面板） |
+| 拖入列表 | `localStorage` 键 `dsh.workbench.pinned.v1` |
+| 拖放 payload | `application/x-dsh-workbench-panel` + `text/plain` JSON `{kind:"panel", id}` |
 | 网页搜索 | `globalThis.__dshBuiltinBrowser.openPanel(sessionId, url)`，回退 `window.open` |
 | 包名 / 客户端模块 id | `dsh-workbench` |
 | 语言命名空间 | `workbench` |
 
-Host 半边 (`index.js`) 只有空的 `apply()`。渲染与交互都在 `client.js`，使用 `window.__ModuleLoader__.load` 的懒工厂格式，React 由浏览器模块表提供。应用与侧边栏面板列表通过 `ctx.slots.entries` / `ctx.slots.subscribe` 读取；可选服务 `layout` / `uiWorkspace` 通过 `ctx.get()` 判空取用。
+Host 半边 (`index.js`) 只有空的 `apply()`。渲染与交互都在 `client.js`，使用 `window.__ModuleLoader__.load` 的懒工厂格式，React 由浏览器模块表提供。侧边栏面板列表通过 `ctx.slots.entries` / `ctx.slots.subscribe` 读取；拖动能力通过给宿主已有的侧边栏按钮加 `draggable` 和委托 `dragstart` 实现。
 
 ## 安装与更新
 
@@ -139,17 +100,15 @@ plugin_manager  install_bundle  target: <本目录绝对路径>\workbench
 ```powershell
 node --check workbench\client.js
 node --check workbench\index.js
-node workbench\test\smoke.mjs   # 加载模块、执行 apply，并用 stub React 执行工作台页面组件
+node workbench\test\smoke.mjs   # 加载模块、执行 apply，并用 stub React 执行工作台页面（含拖入应用/取消拖入）
 ```
 
 ## 已知限制
 
-- 网页搜索依赖 `dsh-builtin-browser` 及其“会话右侧栏”面板；如果当前没有可用会话或侧栏未挂载，会回退到浏览器新标签页，并在无法打开时给出提示。
-- 拖动使用桌面 HTML5 拖放，触屏设备暂不支持。
-- 自定义分类、书签、待办与背景都保存在当前浏览器的 `localStorage`；换浏览器、无痕模式或清缓存后会丢失。
-- 背景图片建议小于 2MB；超出会提示。`localStorage` 配额不足时图片当次仍生效，但可能无法持久保存。
+- 拖入依赖桌面 HTML5 拖放；触屏设备暂不支持。
+- 侧边栏行由宿主渲染，工作台通过 DOM 给它加 `draggable`；宿主大改侧边栏结构时可能需要重新适配。
+- 拖入列表、分类、书签、待办与背景都保存在当前浏览器的 `localStorage`；换浏览器、无痕模式或清缓存后会丢失。
+- 插件被卸载后，其拖入记录会保留；重装后重新出现。若面板已不存在，点击应用卡会提示「面板未注册」。
+- 网页搜索依赖 `dsh-builtin-browser` 及其“会话右侧栏”面板；不可用时回退浏览器新标签页。
 - 「最近会话」不显示相对时间：会话摘要未提供稳定的更新时间字段，按会话列表既有顺序展示。
-- 热点信息（`dsh-hotspot`）、便签（`dsh-scratchpad`）是独立侧边栏插件，不参与工作台的自动收纳，也不会被工作台隐藏。
-- 从热点信息/便签/应用面板返回工作台请点侧边栏「工作台」图标。
-- 显式注册方式依赖对四个本地插件 `client.js` 的注册改动；插件升级会覆盖，需要重新改回 `workbench.apps`。零改动收纳方式不受插件升级影响。
-- 视觉验证依赖已连接的 Harness 页面；本机浏览器控制不可用时只能验证 JS 语法、清单、资源与线上插槽注册。
+- 视觉验证依赖已连接的 Harness 页面；本机浏览器控制不可用时只能验证 JS 语法、清单与线上插槽注册。
