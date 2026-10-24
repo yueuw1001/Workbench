@@ -159,7 +159,7 @@ function hasClass(node, name) {
   if (Array.isArray(node.children)) return node.children.some((child) => hasClass(child, name))
   return false
 }
-for (const className of ['dswb-modulesCard', 'dswb-ghost', 'dswb-webCard']) {
+for (const className of ['dswb-modulesCard', 'dswb-ghost', 'dswb-webCard', 'dswb-engines']) {
   if (!hasClass(pageTree, className)) throw new Error(`page is missing .${className}`)
 }
 

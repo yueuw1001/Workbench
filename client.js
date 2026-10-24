@@ -55,6 +55,10 @@ window.__ModuleLoader__.load({
       webSearchHint: '用内置浏览器打开',
       webSearchPlaceholder: '搜索网页或输入网址…',
       webSearchButton: '搜索',
+      webSearchEngine: '搜索引擎',
+      engineBaidu: '百度',
+      engineBing: 'Bing',
+      engineGoogle: 'Google',
       recentBookmarks: '最近书签',
       bookmarksEmpty: '通过上方搜索打开的网页会出现在这里。',
       bookmarkDelete: '删除书签',
@@ -136,6 +140,10 @@ window.__ModuleLoader__.load({
       webSearchHint: 'Opens in the built-in browser',
       webSearchPlaceholder: 'Search the web or enter a URL…',
       webSearchButton: 'Search',
+      webSearchEngine: 'Search engine',
+      engineBaidu: 'Baidu',
+      engineBing: 'Bing',
+      engineGoogle: 'Google',
       recentBookmarks: 'Recent bookmarks',
       bookmarksEmpty: 'Pages opened from the search above appear here.',
       bookmarkDelete: 'Remove bookmark',
@@ -668,6 +676,7 @@ window.__ModuleLoader__.load({
     const TODOS_KEY = 'dsh.workbench.todos.v1'
     const LEGACY_MODULES_KEY = 'dsh.workbench.modules.v1'
     const BACKGROUND_KEY = 'dsh.workbench.background.v1'
+    const SEARCH_ENGINE_KEY = 'dsh.workbench.searchEngine.v1'
     const APP_CATS_KEY = 'dsh.workbench.appCats.v1'
     const APP_ASSIGN_KEY = 'dsh.workbench.appAssign.v1'
     const SESSION_CATS_KEY = 'dsh.workbench.sessionCats.v1'
@@ -678,6 +687,12 @@ window.__ModuleLoader__.load({
     const CATEGORY_MAX_LENGTH = 24
     const MAX_CATEGORIES = 20
     const MAX_BOOKMARKS = 8
+
+    const SEARCH_ENGINES = [
+      { id: 'baidu', labelKey: 'engineBaidu', url: 'https://www.baidu.com/s?wd=' },
+      { id: 'bing', labelKey: 'engineBing', url: 'https://www.bing.com/search?q=' },
+      { id: 'google', labelKey: 'engineGoogle', url: 'https://www.google.com/search?q=' },
+    ]
 
     function readLocal(key) {
       try {
@@ -749,6 +764,18 @@ window.__ModuleLoader__.load({
 
     function saveBackground(value) {
       writeLocal(BACKGROUND_KEY, typeof value === 'string' ? value : '')
+    }
+
+    function loadSearchEngine() {
+      const raw = readLocal(SEARCH_ENGINE_KEY)
+      for (let index = 0; index < SEARCH_ENGINES.length; index += 1) {
+        if (SEARCH_ENGINES[index].id === raw) return raw
+      }
+      return SEARCH_ENGINES[0].id
+    }
+
+    function saveSearchEngine(id) {
+      writeLocal(SEARCH_ENGINE_KEY, typeof id === 'string' ? id : SEARCH_ENGINES[0].id)
     }
 
     function loadCategories(key) {
@@ -873,6 +900,7 @@ window.__ModuleLoader__.load({
       const [sessionCatDraft, setSessionCatDraft] = useState('')
       const [bookmarks, setBookmarks] = useState(loadBookmarks)
       const [webQuery, setWebQuery] = useState('')
+      const [searchEngine, setSearchEngine] = useState(loadSearchEngine)
       const [dragOver, setDragOver] = useState('')
       const [background, setBackground] = useState(loadBackground)
       const [bgOpen, setBgOpen] = useState(false)
@@ -883,6 +911,7 @@ window.__ModuleLoader__.load({
       useEffect(function () { saveCategories(SESSION_CATS_KEY, sessionCats) }, [sessionCats])
       useEffect(function () { saveAssignments(SESSION_ASSIGN_KEY, sessionAssign) }, [sessionAssign])
       useEffect(function () { saveBookmarks(bookmarks) }, [bookmarks])
+      useEffect(function () { saveSearchEngine(searchEngine) }, [searchEngine])
       useEffect(function () { saveBackground(background) }, [background])
 
       const [query, setQuery] = useState('')
@@ -1043,7 +1072,14 @@ window.__ModuleLoader__.load({
           if (/^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(raw) && raw.indexOf(' ') === -1) {
             url = 'https://' + raw
           } else {
-            url = 'https://www.baidu.com/s?wd=' + encodeURIComponent(raw)
+            let engine = SEARCH_ENGINES[0]
+            for (let index = 0; index < SEARCH_ENGINES.length; index += 1) {
+              if (SEARCH_ENGINES[index].id === searchEngine) {
+                engine = SEARCH_ENGINES[index]
+                break
+              }
+            }
+            url = engine.url + encodeURIComponent(raw)
           }
         }
         if (openUrl(url, raw)) setWebQuery('')
@@ -1391,6 +1427,18 @@ window.__ModuleLoader__.load({
           h('span', { key: 'hint', className: 'dswb-sectionHint' }, t('webSearchHint'))
         ),
         h('form', { key: 'form', className: 'dswb-webForm', onSubmit: handleWebSearch },
+          h('div', { key: 'engines', className: 'dswb-engines', role: 'group', 'aria-label': t('webSearchEngine') },
+            SEARCH_ENGINES.map(function (engine) {
+              const active = searchEngine === engine.id
+              return h('button', {
+                key: engine.id,
+                type: 'button',
+                className: active ? 'dswb-engine is-active' : 'dswb-engine',
+                'aria-pressed': active,
+                onClick: function () { setSearchEngine(engine.id) },
+              }, t(engine.labelKey))
+            })
+          ),
           h('input', {
             key: 'input',
             type: 'search',
@@ -1803,6 +1851,11 @@ window.__ModuleLoader__.load({
       '.dswb-recentBody{display:flex;flex-direction:column}',
       '.dswb-webCard{overflow:hidden}',
       '.dswb-webForm{display:flex;align-items:center;gap:10px;padding:14px 20px 0}',
+      '.dswb-engines{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-layer-1);flex:none}',
+      '.dswb-engine{padding:5px 10px;border:none;border-radius:7px;background:transparent;color:var(--dswb-alias-label-secondary);font-family:inherit;font-size:12px;cursor:pointer;transition:background .15s ease,color .15s ease}',
+      '.dswb-engine:hover{background:var(--dswb-alias-bg-layer-2);color:var(--dswb-alias-label-primary)}',
+      '.dswb-engine.is-active{background:var(--dswb-alias-label-primary);color:var(--dswb-alias-bg-base);font-weight:600}',
+      '.dswb-engine:focus-visible{outline:2px solid var(--dswb-alias-brand-primary);outline-offset:1px}',
       '.dswb-webInput{flex:1;min-width:0;box-sizing:border-box;padding:8px 12px;border:1px solid var(--dswb-alias-border-l1);border-radius:9px;background:var(--dswb-alias-bg-base);color:var(--dswb-alias-label-primary);font-family:inherit;font-size:13px;outline:none;transition:border-color .15s ease}',
       '.dswb-webInput:focus-visible{border-color:var(--dswb-alias-brand-primary)}',
       '.dswb-webInput::placeholder{color:var(--dswb-alias-label-secondary);opacity:.85}',
@@ -1875,7 +1928,7 @@ window.__ModuleLoader__.load({
       '.dswb-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:40;max-width:80vw;padding:9px 15px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);box-shadow:0 8px 26px color-mix(in srgb,var(--dsw-alias-label-primary) 18%,transparent);font-size:12.5px}',
       '@media (max-width:820px){.dswb-quick{grid-template-columns:minmax(0,1fr)}}',
       '@media (max-width:720px){.dswb-appGrid{grid-template-columns:minmax(0,1fr)}}',
-      '@media (max-width:640px){.dswb-hero{flex-direction:column;align-items:flex-start}.dswb-heroAction{padding-bottom:0}.dswb-cardHead{flex-wrap:wrap}.dswb-search{width:100%;max-width:none}.dswb-catDesc{display:none}.dswb-addInput{width:100%;max-width:none}.dswb-addForm{flex-basis:100%;justify-content:flex-start}.dswb-webForm{flex-wrap:wrap}.dswb-webInput{flex-basis:100%}.dswb-catCreate .dswb-addInput{width:100%;max-width:none}}',
+      '@media (max-width:640px){.dswb-hero{flex-direction:column;align-items:flex-start}.dswb-heroAction{padding-bottom:0}.dswb-cardHead{flex-wrap:wrap}.dswb-search{width:100%;max-width:none}.dswb-catDesc{display:none}.dswb-addInput{width:100%;max-width:none}.dswb-addForm{flex-basis:100%;justify-content:flex-start}.dswb-webForm{flex-wrap:wrap}.dswb-engines{width:100%;justify-content:flex-start}.dswb-webInput{flex-basis:100%}.dswb-catCreate .dswb-addInput{width:100%;max-width:none}}',
       '@media (prefers-reduced-motion:reduce){.dswb-dot.is-on{animation:none}}',
       '.dswb-root ::-webkit-scrollbar{width:10px;height:10px}',
       '.dswb-root ::-webkit-scrollbar-thumb{background:var(--dsw-alias-border-l2);border-radius:8px}',
