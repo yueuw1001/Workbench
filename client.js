@@ -59,6 +59,8 @@ window.__ModuleLoader__.load({
       metricHintTokens: '全部会话',
       metricHintSpend: '按模型价格估算',
       metricNoData: '暂无数据',
+      metricAuto: '每 30 秒自动刷新',
+      metricUpdated: '更新于',
       webSearch: '网页搜索',
       webSearchHint: '用内置浏览器打开',
       webSearchPlaceholder: '搜索网页或输入网址…',
@@ -156,6 +158,8 @@ window.__ModuleLoader__.load({
       metricHintTokens: 'All sessions',
       metricHintSpend: 'Estimated from model prices',
       metricNoData: 'No data',
+      metricAuto: 'Refreshes every 30s',
+      metricUpdated: 'Updated',
       webSearch: 'Web search',
       webSearchHint: 'Opens in the built-in browser',
       webSearchPlaceholder: 'Search the web or enter a URL…',
@@ -413,6 +417,18 @@ window.__ModuleLoader__.load({
       }
     }
 
+    function formatClockTime(timestamp, active) {
+      const value = Number(timestamp)
+      if (!Number.isFinite(value) || value <= 0) return '—'
+      try {
+        return new Intl.DateTimeFormat(localeTag(active), {
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        }).format(new Date(value))
+      } catch (error) {
+        return new Date(value).toLocaleTimeString()
+      }
+    }
+
     /**
      * Find the shared `queryBalanceCost` projection among the session list
      * projections. Every session carries the same account-wide value, so the
@@ -508,17 +524,30 @@ window.__ModuleLoader__.load({
       return fetchAccountBalance(localeId)
     }
 
-    /** Read the account balance when the workbench opens (and on locale change). */
+    /** Read the account balance on open and refresh it every 30 seconds. */
     function useBalance(localeId) {
       const [balance, setBalance] = useState(null)
+      const [updatedAt, setUpdatedAt] = useState(0)
       useEffect(function () {
         let alive = true
-        loadBalance(localeId).then(function (next) {
-          if (alive) setBalance(next)
-        })
-        return function () { alive = false }
+        const load = function () {
+          loadBalance(localeId).then(function (next) {
+            if (!alive) return
+            setBalance(next)
+            setUpdatedAt(Date.now())
+          })
+        }
+        load()
+        if (typeof window === 'undefined' || typeof window.setInterval !== 'function') {
+          return function () { alive = false }
+        }
+        const timer = window.setInterval(load, 30000)
+        return function () {
+          alive = false
+          window.clearInterval(timer)
+        }
       }, [localeId])
-      return balance
+      return { balance: balance, updatedAt: updatedAt }
     }
 
     // ------------------------------------------------------------------
@@ -1103,8 +1132,11 @@ window.__ModuleLoader__.load({
       const statuses = typeof props.useSessionStatus === 'function'
         ? props.useSessionStatus(function (state) { return state })
         : undefined
-      const balance = useBalance(active)
+      const balanceState = useBalance(active)
+      const balance = balanceState.balance
+      const balanceUpdatedAt = balanceState.updatedAt
       const today = useMemo(function () { return todayStatsOf(sessions) }, [sessions])
+      const sessionsKey = sessions && Array.isArray(sessions.ids) ? sessions.ids.join('|') : ''
       const [appsOpen, setAppsOpen] = useState(true)
       const [recentOpen, setRecentOpen] = useState(true)
       const [todos, setTodos] = useState(loadTodos)
@@ -1206,6 +1238,29 @@ window.__ModuleLoader__.load({
           }
         }
       }, [dragPanelsKey])
+
+      // The account-wide token/spend projection is refreshed on the same 30s
+      // cadence as the balance, so the cards do not sit on a stale snapshot.
+      useEffect(function () {
+        const sessionService = service('sessions')
+        if (!sessionService || typeof sessionService.refreshProjections !== 'function') return undefined
+        const ids = sessionsKey === '' ? [] : sessionsKey.split('|')
+        if (ids.length === 0) return undefined
+        const refresh = function () {
+          for (let index = 0; index < ids.length; index += 1) {
+            try {
+              const result = sessionService.refreshProjections(ids[index])
+              if (result && typeof result.catch === 'function') result.catch(function () { /* ignore */ })
+            } catch (error) {
+              // The next tick retries.
+            }
+          }
+        }
+        refresh()
+        if (typeof window === 'undefined' || typeof window.setInterval !== 'function') return undefined
+        const timer = window.setInterval(refresh, 30000)
+        return function () { window.clearInterval(timer) }
+      }, [sessionsKey])
 
       const [query, setQuery] = useState('')
       const [notice, setNotice] = useState(null)
@@ -1798,7 +1853,10 @@ window.__ModuleLoader__.load({
       const metricsNode = h('section', { key: 'metrics', className: 'dswb-metricsSection', 'aria-label': t('metrics') },
         h('div', { key: 'head', className: 'dswb-sectionHead' },
           h('h2', { key: 'title', className: 'dswb-sectionTitle' }, t('metrics')),
-          today && today.day ? h('span', { key: 'day', className: 'dswb-sectionHint' }, today.day) : null
+          h('span', { key: 'meta', className: 'dswb-sectionHint' },
+            (today && today.day ? today.day + ' · ' : '')
+              + t('metricAuto')
+              + (balanceUpdatedAt ? ' · ' + t('metricUpdated') + ' ' + formatClockTime(balanceUpdatedAt, active) : ''))
         ),
         h('div', { key: 'grid', className: 'dswb-metrics' },
           metricCard('balance', t('metricBalance'),

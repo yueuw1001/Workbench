@@ -7,8 +7,8 @@ DeepSeek Harness Web 插件：左侧边栏的「工作台」入口，集中展�
 ### 账户与用量
 
 - 工作台顶部三张卡片：**剩余余额、今日使用 Token、今日使用金额**。
-- 余额来自 `dsh-api-dashboard` 的 `/api-dashboard/balances?stale=1`（取 `platform: "deepseek"` 的 `total`），不可用时回退核心 account 远端；打开工作台时读取一次。
-- 今日 Token / 金额来自会话的 `queryBalanceCost` 投影（`todayTokens` / `todayByCurrency`），随会话存储实时更新；数据缺失时显示「—」。
+- 余额来自 `dsh-api-dashboard` 的 `/api-dashboard/balances?stale=1`（取 `platform: "deepseek"` 的 `total`），不可用时回退核心 account 远端；打开工作台时读取，之后**每 30 秒自动刷新**。
+- 今日 Token / 金额来自会话的 `queryBalanceCost` 投影（`todayTokens` / `todayByCurrency`），随会话存储实时更新，并每 30 秒触发一次投影刷新；标题行显示「每 30 秒自动刷新 · 更新于 HH:mm:ss」。
 
 ### 网页搜索 + 最近书签
 
