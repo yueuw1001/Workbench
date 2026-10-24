@@ -182,7 +182,7 @@ context.window.localStorage = {
   setItem(key, value) { store[key] = String(value) },
 }
 const seededTree = main.component(pageProps)
-for (const className of ['dswb-app', 'dswb-catCreate', 'dswb-bookmark', 'dswb-sessionGroups', 'dswb-module', 'dswb-dropZone', 'dswb-appPinned', 'dswb-appUnpin']) {
+for (const className of ['dswb-app', 'dswb-catCreate', 'dswb-bookmark', 'dswb-sessionGroups', 'dswb-module', 'dswb-dropZone', 'dswb-appPinned', 'dswb-appUnpin', 'dswb-groupEdit']) {
   if (!hasClass(seededTree, className)) throw new Error(`seeded page is missing .${className}`)
 }
 console.log('page render smoke ok')

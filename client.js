@@ -77,6 +77,9 @@ window.__ModuleLoader__.load({
       categoryPlaceholder: '新分类名称…',
       categoryAdd: '新建分类',
       categoryDelete: '删除分类（项目回到原来的分组）',
+      categoryRename: '重命名分类',
+      categoryRenameSave: '保存',
+      categoryRenameCancel: '取消',
       categoryCustomDesc: '自定义分类',
       dragSessionsHint: '拖动会话到分类',
       unclassified: '未分类',
@@ -176,6 +179,9 @@ window.__ModuleLoader__.load({
       categoryPlaceholder: 'New category name…',
       categoryAdd: 'Add category',
       categoryDelete: 'Delete category (items return to their default group)',
+      categoryRename: 'Rename category',
+      categoryRenameSave: 'Save',
+      categoryRenameCancel: 'Cancel',
       categoryCustomDesc: 'Custom category',
       dragSessionsHint: 'Drag sessions into a category',
       unclassified: 'Uncategorized',
@@ -732,6 +738,14 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function IconPencil(props) {
+      const size = props !== null && props !== undefined && typeof props.size === 'number' ? props.size : 12
+      return h('svg', iconProps(size, false),
+        h('path', { key: 'body', d: 'M4.5 19.5l4.2-1 9.4-9.4a2.2 2.2 0 0 0-3.1-3.1L5.6 15.3z' }),
+        h('path', { key: 'tip', d: 'm13.6 6.4 3 3' })
+      )
+    }
+
     function IconImage(props) {
       const size = props !== null && props !== undefined && typeof props.size === 'number' ? props.size : 17
       return h('svg', iconProps(size, false),
@@ -1144,9 +1158,13 @@ window.__ModuleLoader__.load({
       const [appCats, setAppCats] = useState(function () { return loadCategories(APP_CATS_KEY) })
       const [appAssign, setAppAssign] = useState(function () { return loadAssignments(APP_ASSIGN_KEY) })
       const [appCatDraft, setAppCatDraft] = useState('')
+      const [editingAppCat, setEditingAppCat] = useState('')
+      const [appCatRename, setAppCatRename] = useState('')
       const [sessionCats, setSessionCats] = useState(function () { return loadCategories(SESSION_CATS_KEY) })
       const [sessionAssign, setSessionAssign] = useState(function () { return loadAssignments(SESSION_ASSIGN_KEY) })
       const [sessionCatDraft, setSessionCatDraft] = useState('')
+      const [editingSessionCat, setEditingSessionCat] = useState('')
+      const [sessionCatRename, setSessionCatRename] = useState('')
       const [bookmarks, setBookmarks] = useState(loadBookmarks)
       const [webQuery, setWebQuery] = useState('')
       const [searchEngine, setSearchEngine] = useState(loadSearchEngine)
@@ -1462,6 +1480,10 @@ window.__ModuleLoader__.load({
       }
 
       function removeAppCategory(categoryId) {
+        if (editingAppCat === categoryId) {
+          setEditingAppCat('')
+          setAppCatRename('')
+        }
         setAppCats(function (list) {
           return list.filter(function (item) { return item.id !== categoryId })
         })
@@ -1474,6 +1496,30 @@ window.__ModuleLoader__.load({
         })
       }
 
+      function beginRenameAppCategory(cat) {
+        if (!cat) return
+        setEditingAppCat(cat.id)
+        setAppCatRename(cat.name)
+      }
+
+      function cancelRenameAppCategory() {
+        setEditingAppCat('')
+        setAppCatRename('')
+      }
+
+      function commitRenameAppCategory() {
+        const categoryId = editingAppCat
+        const name = appCatRename.trim().slice(0, CATEGORY_MAX_LENGTH)
+        if (categoryId === '' || name === '') return
+        setAppCats(function (list) {
+          return list.map(function (cat) {
+            return cat.id === categoryId ? { id: cat.id, name: name } : cat
+          })
+        })
+        setEditingAppCat('')
+        setAppCatRename('')
+      }
+
       function addSessionCategory(event) {
         if (event) event.preventDefault()
         const name = sessionCatDraft.trim().slice(0, CATEGORY_MAX_LENGTH)
@@ -1483,6 +1529,10 @@ window.__ModuleLoader__.load({
       }
 
       function removeSessionCategory(categoryId) {
+        if (editingSessionCat === categoryId) {
+          setEditingSessionCat('')
+          setSessionCatRename('')
+        }
         setSessionCats(function (list) {
           return list.filter(function (item) { return item.id !== categoryId })
         })
@@ -1493,6 +1543,30 @@ window.__ModuleLoader__.load({
           }
           return next
         })
+      }
+
+      function beginRenameSessionCategory(categoryId, name) {
+        if (typeof categoryId !== 'string' || categoryId === '') return
+        setEditingSessionCat(categoryId)
+        setSessionCatRename(name)
+      }
+
+      function cancelRenameSessionCategory() {
+        setEditingSessionCat('')
+        setSessionCatRename('')
+      }
+
+      function commitRenameSessionCategory() {
+        const categoryId = editingSessionCat
+        const name = sessionCatRename.trim().slice(0, CATEGORY_MAX_LENGTH)
+        if (categoryId === '' || name === '') return
+        setSessionCats(function (list) {
+          return list.map(function (cat) {
+            return cat.id === categoryId ? { id: cat.id, name: name } : cat
+          })
+        })
+        setEditingSessionCat('')
+        setSessionCatRename('')
       }
 
       function readDrag(event) {
@@ -1652,6 +1726,46 @@ window.__ModuleLoader__.load({
             )
           })
 
+      const renameControls = function (value, setValue, save, cancel) {
+        return h(React.Fragment, null,
+          h('input', {
+            key: 'input',
+            type: 'text',
+            className: 'dswb-catRenameInput',
+            value: value,
+            maxLength: CATEGORY_MAX_LENGTH,
+            autoFocus: true,
+            'aria-label': t('categoryRename'),
+            onChange: function (event) { setValue(event.target.value) },
+            onKeyDown: function (event) {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                save()
+              } else if (event.key === 'Escape') {
+                event.preventDefault()
+                cancel()
+              }
+            },
+          }),
+          h('button', {
+            key: 'save',
+            type: 'button',
+            className: 'dswb-renameButton',
+            title: t('categoryRenameSave'),
+            'aria-label': t('categoryRenameSave'),
+            onClick: function (event) { event.stopPropagation(); save() },
+          }, h(IconCheck, { size: 11 })),
+          h('button', {
+            key: 'cancel',
+            type: 'button',
+            className: 'dswb-renameButton',
+            title: t('categoryRenameCancel'),
+            'aria-label': t('categoryRenameCancel'),
+            onClick: function (event) { event.stopPropagation(); cancel() },
+          }, h(IconX, { size: 11 }))
+        )
+      }
+
       const renderAppCard = function (app, fallbackIcon, fallbackDescription) {
         const pinned = app.source === 'pinned'
         const description = app.description || fallbackDescription
@@ -1757,17 +1871,33 @@ window.__ModuleLoader__.load({
         },
           h('div', { key: 'head', className: 'dswb-catHead' },
             h('span', { key: 'glyph', className: 'dswb-catGlyph' }, h(IconGrid, { size: 14 })),
-            h('h3', { key: 'title', className: 'dswb-catTitle' }, cat.name),
-            h('span', { key: 'count', className: 'dswb-catCount' }, String(cat.apps.length)),
-            h('span', { key: 'desc', className: 'dswb-catDesc' }, t('categoryCustomDesc')),
-            h('button', {
-              key: 'delete',
-              type: 'button',
-              className: 'dswb-groupDelete',
-              title: t('categoryDelete'),
-              'aria-label': t('categoryDelete'),
-              onClick: function () { removeAppCategory(cat.id) },
-            }, h(IconX, { size: 11 }))
+            editingAppCat === cat.id
+              ? renameControls(appCatRename, setAppCatRename, commitRenameAppCategory, cancelRenameAppCategory)
+              : h(React.Fragment, null,
+                  h('h3', {
+                    key: 'title',
+                    className: 'dswb-catTitle',
+                    onDoubleClick: function () { beginRenameAppCategory(cat) },
+                  }, cat.name),
+                  h('span', { key: 'count', className: 'dswb-catCount' }, String(cat.apps.length)),
+                  h('span', { key: 'desc', className: 'dswb-catDesc' }, t('categoryCustomDesc')),
+                  h('button', {
+                    key: 'edit',
+                    type: 'button',
+                    className: 'dswb-groupEdit',
+                    title: t('categoryRename'),
+                    'aria-label': t('categoryRename'),
+                    onClick: function () { beginRenameAppCategory(cat) },
+                  }, h(IconPencil, { size: 11 })),
+                  h('button', {
+                    key: 'delete',
+                    type: 'button',
+                    className: 'dswb-groupDelete',
+                    title: t('categoryDelete'),
+                    'aria-label': t('categoryDelete'),
+                    onClick: function () { removeAppCategory(cat.id) },
+                  }, h(IconX, { size: 11 }))
+                )
           ),
           cat.apps.length > 0
             ? h('div', { key: 'grid', className: 'dswb-appGrid' },
@@ -2076,18 +2206,38 @@ window.__ModuleLoader__.load({
           onDrop: function (event) { dropSession(event, dropCategoryId) },
         },
           h('div', { key: 'head', className: 'dswb-sessionGroupHead' },
-            h('span', { key: 'title', className: 'dswb-sessionGroupTitle' }, title),
-            h('span', { key: 'count', className: 'dswb-groupCount' }, String(rows.length)),
-            dropCategoryId
-              ? h('button', {
-                  key: 'delete',
-                  type: 'button',
-                  className: 'dswb-groupDelete',
-                  title: t('categoryDelete'),
-                  'aria-label': t('categoryDelete'),
-                  onClick: function () { removeSessionCategory(dropCategoryId) },
-                }, h(IconX, { size: 11 }))
-              : null
+            dropCategoryId && editingSessionCat === dropCategoryId
+              ? renameControls(sessionCatRename, setSessionCatRename, commitRenameSessionCategory, cancelRenameSessionCategory)
+              : h(React.Fragment, null,
+                  h('span', {
+                    key: 'title',
+                    className: 'dswb-sessionGroupTitle',
+                    onDoubleClick: dropCategoryId
+                      ? function () { beginRenameSessionCategory(dropCategoryId, title) }
+                      : undefined,
+                  }, title),
+                  h('span', { key: 'count', className: 'dswb-groupCount' }, String(rows.length)),
+                  dropCategoryId
+                    ? h('button', {
+                        key: 'edit',
+                        type: 'button',
+                        className: 'dswb-groupEdit',
+                        title: t('categoryRename'),
+                        'aria-label': t('categoryRename'),
+                        onClick: function () { beginRenameSessionCategory(dropCategoryId, title) },
+                      }, h(IconPencil, { size: 11 }))
+                    : null,
+                  dropCategoryId
+                    ? h('button', {
+                        key: 'delete',
+                        type: 'button',
+                        className: 'dswb-groupDelete',
+                        title: t('categoryDelete'),
+                        'aria-label': t('categoryDelete'),
+                        onClick: function () { removeSessionCategory(dropCategoryId) },
+                      }, h(IconX, { size: 11 }))
+                    : null
+                )
           ),
           rows.length > 0
             ? rows.map(renderSessionRow)
@@ -2312,6 +2462,13 @@ window.__ModuleLoader__.load({
       '.dswb-groupDelete{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none;transition:background .15s ease,color .15s ease}',
       '.dswb-groupDelete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}',
       '.dswb-groupDelete:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dswb-groupEdit{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none;transition:background .15s ease,color .15s ease}',
+      '.dswb-groupEdit:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}',
+      '.dswb-groupEdit:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
+      '.dswb-catRenameInput{flex:1;min-width:0;box-sizing:border-box;padding:5px 8px;border:1px solid var(--dsw-alias-brand-primary);border-radius:7px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12.5px;outline:none}',
+      '.dswb-renameButton{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none;transition:background .15s ease,color .15s ease}',
+      '.dswb-renameButton:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}',
+      '.dswb-renameButton:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}',
       '.dswb-dropZone{border:1px dashed var(--dsw-alias-border-l2);border-radius:10px;padding:9px 12px;text-align:center;font-size:11.5px;color:var(--dsw-alias-label-secondary);transition:border-color .15s ease,background .15s ease}',
       '.dswb-dropZone.is-over{border-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,transparent);color:var(--dsw-alias-label-primary)}',
       '.dswb-cat{border-radius:10px;outline:1px dashed transparent;outline-offset:4px;transition:background .15s ease,outline-color .15s ease}',
